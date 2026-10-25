@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Holy Stocks Screener</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <h1>Holy Stocks <span>Screener</span></h1>
+    <p class="sub" id="sub">Wyckoff-Akkumulationen · Scanner v5 · Testlauf</p>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button id="tabBoard" class="tab on" role="tab" aria-selected="true">Board</button>
+    <button id="tabScatter" class="tab" role="tab" aria-selected="false">Streudiagramm</button>
+    <button id="tabLegend" class="tab" role="tab" aria-selected="false">Legende</button>
+  </nav>
+  <label class="toggle"><input type="checkbox" id="tipToggle"> Tooltips</label>
+</header>
+
+<main id="pBoard" class="board"></main>
+
+<main id="pScatter" hidden>
+  <div class="scBar">
+    <label class="toggle"><input type="checkbox" id="tailToggle" checked> Verlauf (letzte Freitage)</label>
+    <span class="note" id="scNote"></span>
+  </div>
+  <div id="scatter" class="scatter"></div>
+</main>
+
+<main id="pLegend" class="legend" hidden></main>
+
+<section id="detail" class="detail" hidden aria-modal="true" role="dialog">
+  <div class="dhead">
+    <button id="dBack" class="ghost">← Zurück</button>
+    <div class="dtitle"><b id="dSym"></b><span id="dName"></span></div>
+    <div class="dmeta" id="dMeta"></div>
+    <button id="dPrev" class="ghost" title="vorherige Karte">‹</button>
+    <button id="dNext" class="ghost" title="nächste Karte">›</button>
+  </div>
+  <div class="dbody">
+    <div class="charts" id="charts">
+      <div class="pane main"><div class="plab" id="pl0">Kurs</div><div class="cv" id="c0"></div></div>
+      <div class="pane"><div class="plab">Volumen <small>hell = steigende Kerze, grau = fallende</small></div><div class="cv" id="c1"></div></div>
+      <div class="pane"><div class="plab">Weis-Wellen <small>kumuliertes Volumen je Welle, Umkehr ab 1,5 ATR · hell = Aufwärtswelle</small></div><div class="cv" id="c2"></div></div>
+      <div class="pane"><div class="plab">Harmonie <small>log(Weg/Volumen) · + Rutschen · − Schieben · gepunktet ±log 2</small></div><div class="cv" id="c3"></div></div>
+      <div class="pane"><div class="plab" id="pl4">Wikipedia-Aufrufe</div><div class="cv" id="c4"></div></div>
+      <div class="pane"><div class="plab" id="pl5">Markttrend</div><div class="cv" id="c5"></div></div>
+    </div>
+    <aside class="side" id="side"></aside>
+  </div>
+</section>
+<div id="tip" class="tip" hidden></div>
+<script src="lwc.js" defer></script>
+<script src="app.js" defer></script>
+</body>
+</html>
