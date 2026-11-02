@@ -310,7 +310,7 @@ function renderLegend(){
   <div>${funnelIcon(16)}</div><div>Echter Trichter: Die Wellen in der Spanne werden von Welle zu Welle kleiner, obere Kante fällt, untere steigt (nach Francis Hunt).</div>
   <div style="font-size:15px;color:#f2f2f2">SC ●●●○○</div><div>Ereignis im Chart mit Bewertung 0–5 Punkten.</div>
   <div><span style="background:#f2f2f2;color:#000;padding:1px 6px;border-radius:3px;font-weight:600">AR ●●●●●</span></div><div>Top-Ereignis (volle Punktzahl): weiß hinterlegt.</div>
-  <div style="color:#f2f2f2;font-weight:600">✦ SC</div><div>Außergewöhnlich (SC, Spring oder JAC nahe am Ideal).</div></div>
+  <div style="color:#f2f2f2;font-weight:600">✦ SC</div><div>Außergewöhnlich (SC, Spring oder JAC nahe am Ideal). Spring heißt erst nach einem JAC so (rückblickend); vorher steht „Spring?“ (möglicher Spring, unbestätigt).</div></div>
   <h2>Kerzen und Linien</h2><div class="lg"><div>Kerzen</div><div>Hohl mit weißem Rand = steigend, grau gefüllt = fallend.</div>
   <div>Creek / Spannentief</div><div>Zwei gleiche durchgezogene graue Linien bis zum rechten Rand: oben die Oberkante der Spanne (AR-Hoch), unten das Spannentief (SC). Ohne Beschriftung.</div>
   <div>Mittellinie</div><div>Dunkel gestrichelt: Achse der Spanne, alternativer enger Stopp. Der klassische Stopp steht nur im Handelsplan.</div>
