@@ -97,3 +97,10 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .rnote{color:var(--g4);font-size:10.5px;margin:-1px 0 3px}
 .rinfo{background:#050505;border:1px solid var(--line);color:var(--g2);font-size:11px;line-height:1.45;padding:7px 8px;margin:3px 0 6px;border-radius:3px}
 .rinfo b{color:var(--g1);font-weight:600}
+
+/* R-S-13 Test-Stocks list (grays only) */
+.tlist{display:flex;flex-direction:column;gap:6px;margin-top:14px}
+.trow{display:grid;grid-template-columns:110px 1fr 1.3fr 1fr 70px;gap:10px;align-items:center;text-align:left;background:#111;border:1px solid #222;color:#d0d0d0;padding:10px 12px;border-radius:6px;font:inherit;cursor:pointer}
+.trow:hover{border-color:#555}.trow[disabled]{opacity:.5;cursor:default}
+.trow small{display:block;color:#6a6a6a;font-size:10.5px}.trow .nm{color:#9a9a9a}.trow .pc{text-align:right;color:#f2f2f2}
+@media (max-width:700px){.trow{grid-template-columns:1fr 1fr}.trow .pc{text-align:left}}
