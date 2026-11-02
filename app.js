@@ -115,21 +115,16 @@ class WyOverlay{
     const bx=D.box, xa=bx?X(bx.i0):null, xb=bx?X(bx.i1):null;
     if(bg){
       if(xa!=null&&xb!=null){const yh=Y(bx.hi), yl=Y(bx.lo); ctx.fillStyle='rgba(255,255,255,.035)'; ctx.fillRect(xa-bs,yh,xb-xa+2*bs,yl-yh);}
-      // Phasen: feine senkrechte Trenner
-      // R-S-15 (2026-11-02 11:08): each phase = its own calm gray band (alternating), boundaries = SOLID thin lines,
-      // letter at the top of each band (dashed lines are reserved for the crosshair)
-      D.spans.forEach((sp,k)=>{const x0=X(sp.i0), x1=X(sp.i1); if(x0==null||x1==null)return;
-        ctx.fillStyle=k%2?'rgba(255,255,255,.075)':'rgba(255,255,255,.035)'; ctx.fillRect(x0-bs,0,x1-x0+2*bs,H-18);
-        ctx.strokeStyle='#8a8a8a'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(Math.round(x0-bs)+.5,0); ctx.lineTo(Math.round(x0-bs)+.5,H-18); ctx.stroke();
-        if(x1-x0>8){ctx.font='700 12px Inter,Helvetica Neue,system-ui,sans-serif'; ctx.fillStyle=G.l; ctx.fillText({A:'A',B:'B',C:'C',D:'D','D+':'D+'}[sp.ph],x0-bs+4,30);}});
+      // (2026-11-02 11:11, Evelyn) no phase lines/letters in the price panel - only the phase bar at the bottom
       return;
     }
     // Phasenleiste unten
     const yb=H-14; let lastLx=null, lastLy=0;
-    for(const sp of D.spans){const x0=X(sp.i0), x1=X(sp.i1); if(x0==null||x1==null)continue;
-      ctx.fillStyle=sp.ph==='C'?G.w:sp.ph.startsWith('D')?G.m:G.x; ctx.fillRect(x0-bs+1,yb,Math.max(2,x1-x0+2*bs-2),3);
+    // R-S-15 (Evelyn 2026-11-02 11:11): adjacent phases alternate dark / light gray, small gap between segments
+    D.spans.forEach((sp,k)=>{const x0=X(sp.i0), x1=X(sp.i1); if(x0==null||x1==null)return;
+      ctx.fillStyle=k%2?'#c8c8c8':'#5a5a5a'; ctx.fillRect(x0-bs+2,yb-1,Math.max(2,x1-x0+2*bs-4),5);
       const lab={A:'A',B:'B',C:'C',D:'D früh','D+':'D spät'}[sp.ph]; if(x1-x0>14) txt(lab,(x0+x1)/2,yb-4,G.l,'center',600,10.5);
-}
+    });
     if(xa!=null){
       line(xa-bs,W,Y(D.creek),G.m,[],1); line(xa-bs,xb==null?W:xb+bs,Y(bx.lo),G.d,[],1);
       line(xa-bs,W,Y(D.mid),G.l,[5,4],1); line(xa-bs,W,Y(D.stops.classic),G.m,[10,3,2,3],1);
@@ -148,8 +143,7 @@ class WyOverlay{
       const w=wN+wD+10; let lv=0, box, yl;
       for(;lv<4;lv++){yl=e.lo?H-46-lv*20:44+lv*20; box={x0:x-w/2,x1:x+w/2,y0:yl-8,y1:yl+8}; if(!hit(box))break;}
       placed.push(box);
-      {const xs=Math.round(x)+.5, ya=e.lo?y+3:y-3, yb2=e.lo?yl-8:yl+8, L=Math.min(16,Math.abs(yb2-ya)), dir=e.lo?1:-1;
-        ctx.strokeStyle=G.m; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(xs,ya); ctx.lineTo(xs,ya+dir*L); ctx.moveTo(xs,yb2); ctx.lineTo(xs,yb2-dir*Math.min(6,Math.abs(yb2-ya))); ctx.stroke();}
+      ctx.strokeStyle=G.d; ctx.lineWidth=1; ctx.setLineDash([1,2]); ctx.beginPath(); ctx.moveTo(Math.round(x)+.5,e.lo?y+3:y-3); ctx.lineTo(Math.round(x)+.5,e.lo?yl+8:yl-8+16); ctx.stroke(); ctx.setLineDash([]);
       const bx0=x-w/2, by0=yl-8;
       if(e.top){ctx.fillStyle=G.w; rr(ctx,bx0,by0,w,16,3); ctx.fill();}
       else{ctx.fillStyle='rgba(10,10,10,.92)'; rr(ctx,bx0,by0,w,16,3); ctx.fill(); ctx.strokeStyle=e.r==null?G.x:G.d; ctx.stroke();}
