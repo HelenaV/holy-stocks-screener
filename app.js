@@ -126,10 +126,10 @@ class WyOverlay{
       const lab={A:'A',B:'B',C:'C',D:'D früh','D+':'D spät'}[sp.ph]; if(x1-x0>14) txt(lab,(x0+x1)/2,yb-4,G.l,'center',600,10.5);
     });
     if(xa!=null){
-      line(xa-bs,W,Y(D.creek),G.m,[],1); line(xa-bs,xb==null?W:xb+bs,Y(bx.lo),G.d,[],1);
-      line(xa-bs,W,Y(D.mid),G.l,[5,4],1); line(xa-bs,W,Y(D.stops.classic),G.m,[10,3,2,3],1);
-      const r=W-8; txt('Creek',r,Y(D.creek)-4,G.m,'right',500,10.5); txt('Mittellinie · enger Stopp',r,Y(D.mid)-4,G.l,'right',500,10.5);
-      txt('Stopp klassisch',r,Y(D.stops.classic)+12,G.m,'right',500,10.5); txt('Spannentief',xa+2,Y(bx.lo)+12,G.d,'left',400,10);
+      // R-S-15 (Evelyn 2026-11-02 11:14): creek and range low = identical calm solid lines to the right edge; midline darker,
+      // dashed; no classic-stop line; no text labels on range lines
+      line(xa-bs,W,Y(D.creek),G.m,[],1); line(xa-bs,W,Y(bx.lo),G.m,[],1);
+      line(xa-bs,W,Y(D.mid),'#4a4a4a',[5,4],1);
     }
     if(D.fl&&D.fl.true){const a=X(D.fl.i0), b=X(D.fl.i1); if(a!=null&&b!=null){ctx.strokeStyle=G.w;ctx.lineWidth=1.3;
       ctx.beginPath();ctx.moveTo(a,Y(D.fl.hi[0]));ctx.lineTo(b,Y(D.fl.hi[1]));ctx.moveTo(a,Y(D.fl.lo[0]));ctx.lineTo(b,Y(D.fl.lo[1]));ctx.stroke();
@@ -283,9 +283,8 @@ function renderLegend(){
   <div><span style="background:#f2f2f2;color:#000;padding:1px 6px;border-radius:3px;font-weight:600">AR ●●●●●</span></div><div>Top-Ereignis (volle Punktzahl): weiß hinterlegt.</div>
   <div style="color:#f2f2f2;font-weight:600">✦ SC</div><div>Außergewöhnlich (SC, Spring oder JAC nahe am Ideal).</div></div>
   <h2>Kerzen und Linien</h2><div class="lg"><div>Kerzen</div><div>Hohl mit weißem Rand = steigend, grau gefüllt = fallend.</div>
-  <div>Creek</div><div>Durchgezogen grau: Oberkante der Spanne (AR-Hoch). Dünner darunter: Spannentief (SC).</div>
-  <div>Mittellinie</div><div>Gestrichelt hell: Achse der Spanne, alternativer enger Stopp.</div>
-  <div>Stopp klassisch</div><div>Strich-Punkt: unter Spring bzw. Spannentief, mit 0,5 ATR Puffer.</div>
+  <div>Creek / Spannentief</div><div>Zwei gleiche durchgezogene graue Linien bis zum rechten Rand: oben die Oberkante der Spanne (AR-Hoch), unten das Spannentief (SC). Ohne Beschriftung.</div>
+  <div>Mittellinie</div><div>Dunkel gestrichelt: Achse der Spanne, alternativer enger Stopp. Der klassische Stopp steht nur im Handelsplan.</div>
   <div>Phasenleiste</div><div>Unten im Kurschart: A, B, C (hell), D früh, D spät (mittelgrau).</div></div>
   <h2>Unterfenster</h2><p>Volumen, Weis-Wellen (dieselben Wellen wie in der Bewertung: Volumen je Welle kumuliert, Richtungswechsel nach 1,5 × Median-ATR der Spanne Gegenbewegung, die Welle endet an ihrem Wendepunkt), Harmonie (log(Kerzenkörper/mittlerer Körper ÷ Volumen/Median), nur Körper ohne Dochte, ±3 begrenzt; positiv = Rutschen, negativ = Schieben; im Trend werden Gegenkerzen ausgeblendet), Wikipedia-Aufrufe (Wikimedia-API, Artikel in der Sprache des Emittenten, falls gefunden) und Markttrend (Heimatindex mit SMA 50/200). Alle teilen die Zeitachse; jedes Fenster hat eine Datumsachse, das Datum der Kerze unter dem Mauszeiger steht oben im Kurschart.</p>
   <h2>Streudiagramm</h2><p>x = Fortschritt durch die Phasen (innerhalb einer Phase stetig geschätzt), y = Score v5. Rechts oben ist es am heißesten. Die Schwänze zeigen, wo die Aktie an den letzten zehn Freitagen stand (Scanner mit damals verfügbaren Daten neu gerechnet). Ring = echter Trichter. (Seit 02.11.2026: ein Spring ist nicht Pflicht, aber ohne gültigen Spring gibt es einen Abzug, und solche Karten stehen in ihrer Spalte immer unter allen Karten mit Spring.)</p>
