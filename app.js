@@ -116,17 +116,20 @@ class WyOverlay{
     if(bg){
       if(xa!=null&&xb!=null){const yh=Y(bx.hi), yl=Y(bx.lo); ctx.fillStyle='rgba(255,255,255,.035)'; ctx.fillRect(xa-bs,yh,xb-xa+2*bs,yl-yh);}
       // Phasen: feine senkrechte Trenner
-      // R-S-15: phase boundaries clearly visible: thin divider + phase letter at each boundary
-      ctx.strokeStyle='#5a5a5a'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
-      for(const sp of D.spans){const x=X(sp.i0); if(x==null)continue; ctx.beginPath(); ctx.moveTo(Math.round(x-bs)+.5,0); ctx.lineTo(Math.round(x-bs)+.5,H-18); ctx.stroke();}
-      ctx.setLineDash([]); return;
+      // R-S-15 (2026-11-02 11:08): each phase = its own calm gray band (alternating), boundaries = SOLID thin lines,
+      // letter at the top of each band (dashed lines are reserved for the crosshair)
+      D.spans.forEach((sp,k)=>{const x0=X(sp.i0), x1=X(sp.i1); if(x0==null||x1==null)return;
+        ctx.fillStyle=k%2?'rgba(255,255,255,.075)':'rgba(255,255,255,.035)'; ctx.fillRect(x0-bs,0,x1-x0+2*bs,H-18);
+        ctx.strokeStyle='#8a8a8a'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(Math.round(x0-bs)+.5,0); ctx.lineTo(Math.round(x0-bs)+.5,H-18); ctx.stroke();
+        if(x1-x0>8){ctx.font='700 12px Inter,Helvetica Neue,system-ui,sans-serif'; ctx.fillStyle=G.l; ctx.fillText({A:'A',B:'B',C:'C',D:'D','D+':'D+'}[sp.ph],x0-bs+4,30);}});
+      return;
     }
     // Phasenleiste unten
     const yb=H-14; let lastLx=null, lastLy=0;
     for(const sp of D.spans){const x0=X(sp.i0), x1=X(sp.i1); if(x0==null||x1==null)continue;
       ctx.fillStyle=sp.ph==='C'?G.w:sp.ph.startsWith('D')?G.m:G.x; ctx.fillRect(x0-bs+1,yb,Math.max(2,x1-x0+2*bs-2),3);
       const lab={A:'A',B:'B',C:'C',D:'D früh','D+':'D spät'}[sp.ph]; if(x1-x0>14) txt(lab,(x0+x1)/2,yb-4,G.l,'center',600,10.5);
-      const yL=(lastLx!=null&&x0-lastLx<16)?lastLy+15:H/2; lastLx=x0; lastLy=yL; txt({A:'A',B:'B',C:'C',D:'D','D+':'D+'}[sp.ph],x0-bs+4,yL,G.l,'left',700,12);}
+}
     if(xa!=null){
       line(xa-bs,W,Y(D.creek),G.m,[],1); line(xa-bs,xb==null?W:xb+bs,Y(bx.lo),G.d,[],1);
       line(xa-bs,W,Y(D.mid),G.l,[5,4],1); line(xa-bs,W,Y(D.stops.classic),G.m,[10,3,2,3],1);
@@ -145,7 +148,8 @@ class WyOverlay{
       const w=wN+wD+10; let lv=0, box, yl;
       for(;lv<4;lv++){yl=e.lo?H-46-lv*20:44+lv*20; box={x0:x-w/2,x1:x+w/2,y0:yl-8,y1:yl+8}; if(!hit(box))break;}
       placed.push(box);
-      ctx.strokeStyle=G.d; ctx.lineWidth=1; ctx.setLineDash([1,2]); ctx.beginPath(); ctx.moveTo(Math.round(x)+.5,e.lo?y+3:y-3); ctx.lineTo(Math.round(x)+.5,e.lo?yl+8:yl-8+16); ctx.stroke(); ctx.setLineDash([]);
+      {const xs=Math.round(x)+.5, ya=e.lo?y+3:y-3, yb2=e.lo?yl-8:yl+8, L=Math.min(16,Math.abs(yb2-ya)), dir=e.lo?1:-1;
+        ctx.strokeStyle=G.m; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(xs,ya); ctx.lineTo(xs,ya+dir*L); ctx.moveTo(xs,yb2); ctx.lineTo(xs,yb2-dir*Math.min(6,Math.abs(yb2-ya))); ctx.stroke();}
       const bx0=x-w/2, by0=yl-8;
       if(e.top){ctx.fillStyle=G.w; rr(ctx,bx0,by0,w,16,3); ctx.fill();}
       else{ctx.fillStyle='rgba(10,10,10,.92)'; rr(ctx,bx0,by0,w,16,3); ctx.fill(); ctx.strokeStyle=e.r==null?G.x:G.d; ctx.stroke();}
@@ -219,7 +223,7 @@ async function openDetail(id){
   charts.forEach((ch,k)=>ch.subscribeCrosshairMove(p=>{showHov(p.time??null); charts.forEach((o,j)=>{if(o===ch)return; if(!p.time){o.clearCrosshairPosition();return;} const s=ser[j]; if(s) o.setCrosshairPosition(NaN,p.time,s);});}));
   // R-S-05: start the view at the prior high or ~120 bars before the PS (whichever is shorter)
   const from=Math.max(0,D.view0??((D.box.i0??0)-20)); lock=true; charts.forEach(ch=>ch.timeScale().setVisibleLogicalRange({from,to:n+8})); lock=false;
-  renderSide(D);
+  renderSide(D); infoize();
 }
 function verdictH(V){if(!V)return'';
   return `<h3>Urteil</h3><dl class="kv"><dt>Evelyn</dt><dd>${esc(V.evelyn)}</dd><dt>Datum</dt><dd>${dDE(V.date)}${V.last_date&&V.last_date!==V.date?' (zuletzt '+dDE(V.last_date)+')':''}</dd>
@@ -232,6 +236,12 @@ function overview(o){if(!o||!o.c||o.c.length<2)return'';
   const r=o.b0!=null?`<rect x="${X(o.b0).toFixed(1)}" y="${Y(o.hi).toFixed(1)}" width="${Math.max(2,X(o.b1)-X(o.b0)).toFixed(1)}" height="${Math.max(2,Y(o.lo)-Y(o.hi)).toFixed(1)}" fill="rgba(255,255,255,.12)" stroke="${G.w}" stroke-width="1"/>`:'';
   return `<h3>Überblick 3 Jahre</h3><svg class="ov" viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="none" aria-hidden="true"><path d="${p}" fill="none" stroke="${G.m}" stroke-width="1.1"/>${r}</svg>
     <div class="note" style="display:flex;justify-content:space-between"><span>${dDE(o.t0)}</span><span>${o.b0!=null?'Kasten = Akkumulation':''}</span><span>${dDE(o.t1)}</span></div>`;}
+// panel subtitles behind a small info icon (click/tap toggles, hover on desktop)
+function infoize(){$$('.plab').forEach(pl=>{const sm=pl.querySelector(':scope > small'); if(!sm)return;
+  const b=document.createElement('button'); b.className='pi'; b.type='button'; b.setAttribute('aria-label','Erklärung'); b.textContent='ⓘ';
+  sm.classList.add('pt'); sm.remove(); b.appendChild(sm); pl.appendChild(b);
+  b.onclick=e=>{e.stopPropagation(); const o=b.classList.toggle('open'); $$('.plab .pi.open').forEach(x=>{if(x!==b)x.classList.remove('open');});};});}
+document.addEventListener('click',()=>$$('.plab .pi.open').forEach(x=>x.classList.remove('open')));
 function renderSide(D){
   if(!D.box){$('#side').innerHTML=overview(D.ov)+verdictH(D.verdict)+`<p class="note" style="margin:10px 0">Keine Zeichnung: ${esc(D.status)}</p>`;return;}
   const P={A:'Phase A · Stopp des Abwärtstrends',B:'Phase B · Aufbau der Ursache',C:'Phase C · Spring / Test',D:'Phase D · Markup bis Konsolidierung'};

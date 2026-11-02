@@ -104,3 +104,9 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .trow:hover{border-color:#555}.trow[disabled]{opacity:.5;cursor:default}
 .trow small{display:block;color:#6a6a6a;font-size:10.5px}.trow .nm{color:#9a9a9a}.trow .pc{text-align:right;color:#f2f2f2}
 @media (max-width:700px){.trow{grid-template-columns:1fr 1fr}.trow .pc{text-align:left}}
+
+/* panel subtitles behind an info icon (Evelyn 2026-11-02) */
+.plab .pi{pointer-events:auto;background:none;border:0;color:var(--g3,#9a9a9a);font:inherit;font-size:12px;cursor:pointer;padding:0 4px;margin-left:4px;position:relative}
+.plab .pi .pt{display:none;position:absolute;left:0;top:18px;background:#141414;border:1px solid #333;color:#d0d0d0;padding:6px 8px;border-radius:4px;width:max-content;max-width:min(520px,80vw);white-space:normal;text-align:left;z-index:5;margin:0}
+.plab .pi.open .pt{display:block}
+@media (hover:hover){.plab .pi:hover .pt{display:block}}
