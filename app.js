@@ -116,15 +116,17 @@ class WyOverlay{
     if(bg){
       if(xa!=null&&xb!=null){const yh=Y(bx.hi), yl=Y(bx.lo); ctx.fillStyle='rgba(255,255,255,.035)'; ctx.fillRect(xa-bs,yh,xb-xa+2*bs,yl-yh);}
       // Phasen: feine senkrechte Trenner
-      ctx.strokeStyle='#1f1f1f'; ctx.setLineDash([2,3]);
-      for(const sp of D.spans){const x=X(sp.i0); if(x==null)continue; ctx.beginPath(); ctx.moveTo(Math.round(x-bs)+.5,0); ctx.lineTo(Math.round(x-bs)+.5,H-22); ctx.stroke();}
+      // R-S-15: phase boundaries clearly visible: thin divider + phase letter at each boundary
+      ctx.strokeStyle='#5a5a5a'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+      for(const sp of D.spans){const x=X(sp.i0); if(x==null)continue; ctx.beginPath(); ctx.moveTo(Math.round(x-bs)+.5,0); ctx.lineTo(Math.round(x-bs)+.5,H-18); ctx.stroke();}
       ctx.setLineDash([]); return;
     }
     // Phasenleiste unten
-    const yb=H-14;
+    const yb=H-14; let lastLx=null, lastLy=0;
     for(const sp of D.spans){const x0=X(sp.i0), x1=X(sp.i1); if(x0==null||x1==null)continue;
       ctx.fillStyle=sp.ph==='C'?G.w:sp.ph.startsWith('D')?G.m:G.x; ctx.fillRect(x0-bs+1,yb,Math.max(2,x1-x0+2*bs-2),3);
-      const lab={A:'A',B:'B',C:'C',D:'D früh','D+':'D spät'}[sp.ph]; if(x1-x0>14) txt(lab,(x0+x1)/2,yb-4,G.l,'center',600,10.5);}
+      const lab={A:'A',B:'B',C:'C',D:'D früh','D+':'D spät'}[sp.ph]; if(x1-x0>14) txt(lab,(x0+x1)/2,yb-4,G.l,'center',600,10.5);
+      const yL=(lastLx!=null&&x0-lastLx<16)?lastLy+15:H/2; lastLx=x0; lastLy=yL; txt({A:'A',B:'B',C:'C',D:'D','D+':'D+'}[sp.ph],x0-bs+4,yL,G.l,'left',700,12);}
     if(xa!=null){
       line(xa-bs,W,Y(D.creek),G.m,[],1); line(xa-bs,xb==null?W:xb+bs,Y(bx.lo),G.d,[],1);
       line(xa-bs,W,Y(D.mid),G.l,[5,4],1); line(xa-bs,W,Y(D.stops.classic),G.m,[10,3,2,3],1);
@@ -134,20 +136,19 @@ class WyOverlay{
     if(D.fl&&D.fl.true){const a=X(D.fl.i0), b=X(D.fl.i1); if(a!=null&&b!=null){ctx.strokeStyle=G.w;ctx.lineWidth=1.3;
       ctx.beginPath();ctx.moveTo(a,Y(D.fl.hi[0]));ctx.lineTo(b,Y(D.fl.hi[1]));ctx.moveTo(a,Y(D.fl.lo[0]));ctx.lineTo(b,Y(D.fl.lo[1]));ctx.stroke();
       txt('Trichter',b+4,Y((D.fl.hi[1]+D.fl.lo[1])/2)+4,G.w,'left',600,10.5);}}
-    // Ereignisse mit Bewertung
-    const placed=[]; const hit=(a)=>placed.some(b=>a.x0<b.x1+3&&a.x1>b.x0-3&&a.y0<b.y1+2&&a.y1>b.y0-2);
+    // Ereignisse mit Bewertung - R-S-15: labels in a lane at the top (highs) / bottom (lows) of the panel, thin leader line
+    const placed=[]; const hit=(a)=>placed.some(b=>a.x0<b.x1+4&&a.x1>b.x0-4&&a.y0<b.y1+2&&a.y1>b.y0-2);
     const evs=[...D.ev].sort((a,b)=>a.i-b.i);
     for(const e of evs){const x=X(e.i); if(x==null)continue; const y=Y(e.p); if(y==null)continue;
       ctx.font='600 11px Inter,Helvetica Neue,system-ui,sans-serif';
       const name=(e.fire?'✦ ':'')+e.k, dt=dots(e.r); const wN=ctx.measureText(name).width; ctx.font='8.5px system-ui,sans-serif'; const wD=dt?ctx.measureText(dt).width+5:0;
-      const w=wN+wD+10; let lv=0, box;
-      for(;lv<8;lv++){const o=16+lv*19, yy=e.lo?y+o:y-o; box={x0:x-w/2,x1:x+w/2,y0:yy-8,y1:yy+8}; if(!hit(box))break;}
+      const w=wN+wD+10; let lv=0, box, yl;
+      for(;lv<4;lv++){yl=e.lo?H-46-lv*20:44+lv*20; box={x0:x-w/2,x1:x+w/2,y0:yl-8,y1:yl+8}; if(!hit(box))break;}
       placed.push(box);
-      const off=16+lv*19, yl=e.lo?y+off:y-off;
-      ctx.strokeStyle=e.top?G.w:G.d; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(Math.round(x)+.5,e.lo?y+3:y-3); ctx.lineTo(Math.round(x)+.5,e.lo?yl-7:yl+7); ctx.stroke();
+      ctx.strokeStyle=G.d; ctx.lineWidth=1; ctx.setLineDash([1,2]); ctx.beginPath(); ctx.moveTo(Math.round(x)+.5,e.lo?y+3:y-3); ctx.lineTo(Math.round(x)+.5,e.lo?yl+8:yl-8+16); ctx.stroke(); ctx.setLineDash([]);
       const bx0=x-w/2, by0=yl-8;
       if(e.top){ctx.fillStyle=G.w; rr(ctx,bx0,by0,w,16,3); ctx.fill();}
-      else{ctx.fillStyle='rgba(10,10,10,.85)'; rr(ctx,bx0,by0,w,16,3); ctx.fill(); ctx.strokeStyle=e.r==null?G.x:G.d; ctx.stroke();}
+      else{ctx.fillStyle='rgba(10,10,10,.92)'; rr(ctx,bx0,by0,w,16,3); ctx.fill(); ctx.strokeStyle=e.r==null?G.x:G.d; ctx.stroke();}
       txt(name,bx0+5,yl+4,e.top?'#000':(e.r==null?G.m:G.w),'left',600,11);
       if(dt) txt(dt,bx0+5+wN+5,yl+3.5,e.top?'#000':G.l,'left',400,8.5);
     }
@@ -157,7 +158,7 @@ function rr(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w
 
 function baseOpts(last){return{autoSize:true,layout:{attributionLogo:false,background:{type:'solid',color:G.bg},textColor:G.m,fontSize:11,fontFamily:'Inter,Helvetica Neue,system-ui,sans-serif'},
   grid:{vertLines:{visible:false},horzLines:{color:'#151515'}},rightPriceScale:{borderColor:'#222',minimumWidth:78},
-  timeScale:{visible:true,borderColor:'#222',rightOffset:8,timeVisible:false},crosshair:{mode:0,vertLine:{color:'#555',style:2,labelVisible:true,labelBackgroundColor:'#333'},horzLine:{color:'#555',style:2,labelBackgroundColor:'#333'}},
+  timeScale:{visible:true,borderColor:'#222',rightOffset:8,timeVisible:false},crosshair:{mode:0,vertLine:{color:'#555',style:2,labelVisible:!!last,labelBackgroundColor:'#333'},horzLine:{color:'#555',style:2,labelBackgroundColor:'#333'}},
   localization:{locale:'de-DE',dateFormat:'dd.MM.yyyy'},handleScale:{axisPressedMouseMove:{time:true,price:true}}};}
 
 // R-S-12: judged charts (tests/cases) that are not on the board: detail page only (#s=<id>, linked in the legend)
@@ -173,7 +174,7 @@ async function openDetail(id){
   const LW=window.LightweightCharts, T=D.t, n=T.length;
   const mk=(k,last=false,extra={})=>{const ch=LW.createChart($('#c'+k),Object.assign(baseOpts(last),extra)); charts.push(ch); return ch;};
   // Kurs
-  const c0=mk(0,false,{rightPriceScale:{borderColor:'#222',minimumWidth:78,scaleMargins:{top:.1,bottom:.13}}});
+  const c0=mk(0,false,{rightPriceScale:{borderColor:'#222',minimumWidth:78,scaleMargins:{top:.16,bottom:.22}}});
   const cs=c0.addCandlestickSeries({upColor:G.bg,borderUpColor:G.w,wickUpColor:G.w,downColor:'#8a8a8a',borderDownColor:'#8a8a8a',wickDownColor:'#8a8a8a',priceLineVisible:false,lastValueVisible:true,
     priceFormat:{type:'custom',formatter:pf,minMove:0.0001}});
   cs.setData(T.map((t,i)=>({time:t,open:D.o[i],high:D.h[i],low:D.l[i],close:D.c[i]})));
@@ -225,10 +226,16 @@ function verdictH(V){if(!V)return'';
     <dt>Scanner damals</dt><dd>${esc(V.scanner_then)}</dd><dt>Scanner heute (v5)</dt><dd>${esc(V.scanner_now||'–')}</dd>
     <dt>Kurs seit Urteil</dt><dd>${V.pct==null?'–':(V.pct>0?'+':'')+nf(V.pct,1)+' %'} <span class="note">${pf(V.base)} (${dDE(V.base_date)}) → ${pf(V.last)}</span></dd>
     <dt>Hoch / Tief seither</dt><dd>${pf(V.hi)} / ${pf(V.lo)}</dd></dl><p class="note">${esc(V.reason)}</p>`;}
+function overview(o){if(!o||!o.c||o.c.length<2)return'';
+  const W=300,H=74,n=o.c.length,v=o.c.filter(x=>x!=null),lo=Math.min(...v),hi=Math.max(...v),X=i=>2+i/(n-1)*(W-4),Y=p=>H-4-(p-lo)/(hi-lo||1)*(H-8);
+  let p='';o.c.forEach((c,i)=>{if(c!=null)p+=(p?'L':'M')+X(i).toFixed(1)+','+Y(c).toFixed(1);});
+  const r=o.b0!=null?`<rect x="${X(o.b0).toFixed(1)}" y="${Y(o.hi).toFixed(1)}" width="${Math.max(2,X(o.b1)-X(o.b0)).toFixed(1)}" height="${Math.max(2,Y(o.lo)-Y(o.hi)).toFixed(1)}" fill="rgba(255,255,255,.12)" stroke="${G.w}" stroke-width="1"/>`:'';
+  return `<h3>Überblick 3 Jahre</h3><svg class="ov" viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="none" aria-hidden="true"><path d="${p}" fill="none" stroke="${G.m}" stroke-width="1.1"/>${r}</svg>
+    <div class="note" style="display:flex;justify-content:space-between"><span>${dDE(o.t0)}</span><span>${o.b0!=null?'Kasten = Akkumulation':''}</span><span>${dDE(o.t1)}</span></div>`;}
 function renderSide(D){
-  if(!D.box){$('#side').innerHTML=verdictH(D.verdict)+`<p class="note" style="margin:10px 0">Keine Zeichnung: ${esc(D.status)}</p>`;return;}
+  if(!D.box){$('#side').innerHTML=overview(D.ov)+verdictH(D.verdict)+`<p class="note" style="margin:10px 0">Keine Zeichnung: ${esc(D.status)}</p>`;return;}
   const P={A:'Phase A · Stopp des Abwärtstrends',B:'Phase B · Aufbau der Ursache',C:'Phase C · Spring / Test',D:'Phase D · Markup bis Konsolidierung'};
-  let h=verdictH(D.verdict)+(D.box?'':`<p class="note" style="margin:10px 0">Keine Zeichnung: ${esc(D.status)}</p>`)+`<h3>Score</h3><div style="display:flex;align-items:center;gap:14px">${rose(D.phases,D.avg,130,{labels:true})}<div><div style="font-size:34px;font-weight:300;line-height:1">${nf(D.q)}</div>
+  let h=overview(D.ov)+verdictH(D.verdict)+(D.box?'':`<p class="note" style="margin:10px 0">Keine Zeichnung: ${esc(D.status)}</p>`)+`<h3>Score</h3><div style="display:flex;align-items:center;gap:14px">${rose(D.phases,D.avg,130,{labels:true})}<div><div style="font-size:34px;font-weight:300;line-height:1">${nf(D.q)}</div>
     <div class="note">v4: ${nf(D.q4)}</div><div style="margin-top:8px">Konfidenz <span style="letter-spacing:1px">${dots(D.conf)}</span></div></div></div>
     <div class="note" style="margin-top:6px">Blatt größer als der gestrichelte Ring = Phase besser als der Board-Durchschnitt.</div>
     <div class="flagline">${D.funnel.true?`<span class="chip on">${funnelIcon(10).replace(G.w,'#000')} echter Trichter</span>`:''}${D.spring?`<span class="chip">${esc(D.spring.kind)}${D.spring.conf?'':'?'}${D.spring.ok?'':' · Test fehlt'}</span>`:(D.box?'<span class="chip">kein Spring · Abzug</span>':'')}</div>`;
