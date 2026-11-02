@@ -154,9 +154,9 @@ class WyOverlay{
 }
 function rr(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
 
-function baseOpts(last){return{autoSize:true,layout:{attributionLogo:false,background:{type:'solid',color:G.bg},textColor:G.m,fontSize:11,fontFamily:'Inter,Helvetica Neue,system-ui,sans-serif'},
+function baseOpts(dateLabel){return{autoSize:true,layout:{attributionLogo:false,background:{type:'solid',color:G.bg},textColor:G.m,fontSize:11,fontFamily:'Inter,Helvetica Neue,system-ui,sans-serif'},
   grid:{vertLines:{visible:false},horzLines:{color:'#151515'}},rightPriceScale:{borderColor:'#222',minimumWidth:78},
-  timeScale:{visible:true,borderColor:'#222',rightOffset:8,timeVisible:false},crosshair:{mode:0,vertLine:{color:'#555',style:2,labelVisible:!!last,labelBackgroundColor:'#333'},horzLine:{color:'#555',style:2,labelBackgroundColor:'#333'}},
+  timeScale:{visible:true,borderColor:'#222',rightOffset:8,timeVisible:false},crosshair:{mode:0,vertLine:{color:'#555',style:2,labelVisible:!!dateLabel,labelBackgroundColor:'#333'},horzLine:{color:'#555',style:2,labelBackgroundColor:'#333'}},
   localization:{locale:'de-DE',dateFormat:'dd.MM.yyyy'},handleScale:{axisPressedMouseMove:{time:true,price:true}}};}
 
 // R-S-12: judged charts (tests/cases) that are not on the board: detail page only (#s=<id>, linked in the legend)
@@ -170,9 +170,9 @@ async function openDetail(id){
   $('#dSym').textContent=D.sym; $('#dName').textContent=D.name;
   $('#dMeta').innerHTML=`<span>${isTest(id)?(isCustom(id)?'Custom · '+esc(CGRP[(D.cst||{}).gruppe]||(D.cst||{}).gruppe||'')+' · ':'Test-Stock · ')+esc(D.colName)+(c.rej?' · '+esc(c.rej):''):D.colName+(B.cards.some(z=>z.id===id)?'':(c.rej?' · nicht auf dem Board – '+esc(c.rej):' · nicht auf dem Board (beurteilter Fall)'))}</span><span>Daten bis ${dDE(D.asof)}</span><span class="big">${nf(D.q)}</span>`;
   const LW=window.LightweightCharts, T=D.t, n=T.length;
-  const mk=(k,last=false,extra={})=>{const ch=LW.createChart($('#c'+k),Object.assign(baseOpts(last),extra)); charts.push(ch); return ch;};
+  const mk=(k,dateLabel=false,extra={})=>{const ch=LW.createChart($('#c'+k),Object.assign(baseOpts(dateLabel),extra)); charts.push(ch); return ch;};
   // Kurs
-  const c0=mk(0,false,{rightPriceScale:{borderColor:'#222',minimumWidth:78,scaleMargins:{top:.16,bottom:.22}}});
+  const c0=mk(0,true,{rightPriceScale:{borderColor:'#222',minimumWidth:78,scaleMargins:{top:.16,bottom:.22}}});
   const cs=c0.addCandlestickSeries({upColor:G.bg,borderUpColor:G.w,wickUpColor:G.w,downColor:'#8a8a8a',borderDownColor:'#8a8a8a',wickDownColor:'#8a8a8a',priceLineVisible:false,lastValueVisible:true,
     priceFormat:{type:'custom',formatter:pf,minMove:0.0001}});
   cs.setData(T.map((t,i)=>({time:t,open:D.o[i],high:D.h[i],low:D.l[i],close:D.c[i]})));
@@ -202,7 +202,7 @@ async function openDetail(id){
     $('#pl4').innerHTML=`Wikipedia-Aufrufe <small>${esc(D.wiki.lang)}: ${esc(D.wiki.title)} · Balken täglich, Linie 7-Tage-Mittel</small>`;}
   else{const e=s4=c4.addLineSeries({visible:false,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}); e.setData(T.map(t=>({time:t,value:0}))); $('#pl4').innerHTML='Wikipedia-Aufrufe <small>kein passender Artikel gefunden</small>';}
   // Markt
-  const c5=mk(5,true); let s5=null;
+  const c5=mk(5); let s5=null;
   if(D.mkt){const l=(col,st,w,arr)=>{const s=c5.addLineSeries({color:col,lineWidth:w,lineStyle:st,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});s.setData(T.map((t,i)=>arr[i]==null?{time:t}:{time:t,value:arr[i]}));return s;};
     s5=l(G.w,0,1.4,D.mkt.c); l('#8a8a8a',0,1,D.mkt.s50); l('#8a8a8a',2,1,D.mkt.s200);
     $('#pl5').innerHTML=`Markttrend <small>${esc(D.mkt.idx)} ${esc(D.mkt.state)} · weiß Index, grau SMA 50, grau gestrichelt SMA 200</small>`;}
