@@ -286,11 +286,11 @@ function renderCustom(){
       const b=document.createElement('button'); b.className='card'; b.dataset.c=c.id; if(!c.f) b.disabled=true;
       const st=c.miss?(c.f?'keine Struktur':c.miss):(c.rej?'verworfen':'Struktur');
       const r=V.result_r!=null?` · ${V.result_r>0?'+':''}${nf(V.result_r,1)} R`:'';
-      b.innerHTML=`<div class="hd"><span class="tk"><span class="rank">${k+1}</span>${esc(c.sym)}</span><span class="nm">${esc(V.notiz||c.name)}</span></div>
+      b.innerHTML=`<div class="hd"><span class="tk"><span class="rank">${k+1}</span>${esc(c.sym)}</span><span class="nm">${esc(c.name&&c.name!==c.sym?c.name:'')}</span>${V.notiz?`<span class="nm nt">${esc(V.notiz)}</span>`:''}</div>
         <div class="gl">${c.ph?rose(c.ph,B.avg,58):''}<div class="sc">${c.q==null?'–':nf(c.q)}</div></div><canvas></canvas>
         <div class="fx"><span>${esc(st)}</span><span>${V.pct==null?'–':(V.pct>0?'+':'')+nf(V.pct,1)+' %'}${r}</span></div>`;
       b.onclick=()=>openDetail(c.id);
-      b.onmousemove=e=>tip(e,`<b>${esc(c.sym)}</b> · ${esc(V.notiz||'')}<br>${esc(V.scanner_now||c.miss||'')}`); b.onmouseleave=()=>tip();
+      b.onmousemove=e=>tip(e,`<b>${esc(c.sym)}</b> · ${esc(c.name)}${V.notiz?' · '+esc(V.notiz):''}<br>${esc(V.scanner_now||c.miss||'')}`); b.onmouseleave=()=>tip();
       col.appendChild(b);});
     el.appendChild(col);});
   requestAnimationFrame(()=>$$('#pCustom .card').forEach(b=>{const c=C.find(z=>z.id===b.dataset.c); if(c&&c.m) mini(b.querySelector('canvas'),c.m);}));
