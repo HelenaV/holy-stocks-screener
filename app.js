@@ -53,8 +53,8 @@ function mini(cv,m){
   const ctx=cv.getContext('2d'); ctx.scale(dpr,dpr);
   const c=m.c.filter(v=>v!=null), lo=Math.min(...c,m.lo), hi=Math.max(...c,m.hi), n=m.c.length;
   const X=i=>i/(n-1)*(W-2)+1, Y=v=>H-3-(v-lo)/(hi-lo||1)*(H-6);
-  ctx.fillStyle='rgba(255,255,255,.07)'; ctx.fillRect(X(m.b0),Y(m.hi),X(m.b1)-X(m.b0),Y(m.lo)-Y(m.hi));
-  ctx.strokeStyle=G.d; ctx.lineWidth=1; ctx.setLineDash([2,2]); ctx.beginPath(); ctx.moveTo(X(m.b0),Y(m.hi)+.5); ctx.lineTo(W,Y(m.hi)+.5); ctx.stroke(); ctx.setLineDash([]);
+  if(!m.nobox){ctx.fillStyle='rgba(255,255,255,.07)'; ctx.fillRect(X(m.b0),Y(m.hi),X(m.b1)-X(m.b0),Y(m.lo)-Y(m.hi));
+  ctx.strokeStyle=G.d; ctx.lineWidth=1; ctx.setLineDash([2,2]); ctx.beginPath(); ctx.moveTo(X(m.b0),Y(m.hi)+.5); ctx.lineTo(W,Y(m.hi)+.5); ctx.stroke(); ctx.setLineDash([]);}
   ctx.strokeStyle=G.w; ctx.lineWidth=1.2; ctx.beginPath(); m.c.forEach((v,i)=>{if(v==null)return; i?ctx.lineTo(X(i),Y(v)):ctx.moveTo(X(i),Y(v));}); ctx.stroke();
   for(const e of m.ev){const x=X(e.i), v=m.c[e.i]; if(v==null)continue; ctx.fillStyle=G.bg; ctx.strokeStyle=G.w; ctx.lineWidth=1;
     ctx.beginPath(); ctx.arc(x,Y(v),2.6,0,7); ctx.fill(); ctx.stroke();}
@@ -168,7 +168,7 @@ async function openDetail(id){
   const D=await (await fetch('data/s/'+c.f)).json(); if(curId!==id)return;
   charts.forEach(ch=>ch.remove()); charts=[];
   $('#dSym').textContent=D.sym; $('#dName').textContent=D.name;
-  $('#dMeta').innerHTML=`<span>${isTest(id)?(isCustom(id)?'Custom · '+esc((D.cst||{}).gruppe||'')+' · ':'Test-Stock · ')+esc(D.colName)+(c.rej?' · '+esc(c.rej):''):D.colName+(B.cards.some(z=>z.id===id)?'':(c.rej?' · nicht auf dem Board – '+esc(c.rej):' · nicht auf dem Board (beurteilter Fall)'))}</span><span>Daten bis ${dDE(D.asof)}</span><span class="big">${nf(D.q)}</span>`;
+  $('#dMeta').innerHTML=`<span>${isTest(id)?(isCustom(id)?'Custom · '+esc(CGRP[(D.cst||{}).gruppe]||(D.cst||{}).gruppe||'')+' · ':'Test-Stock · ')+esc(D.colName)+(c.rej?' · '+esc(c.rej):''):D.colName+(B.cards.some(z=>z.id===id)?'':(c.rej?' · nicht auf dem Board – '+esc(c.rej):' · nicht auf dem Board (beurteilter Fall)'))}</span><span>Daten bis ${dDE(D.asof)}</span><span class="big">${nf(D.q)}</span>`;
   const LW=window.LightweightCharts, T=D.t, n=T.length;
   const mk=(k,last=false,extra={})=>{const ch=LW.createChart($('#c'+k),Object.assign(baseOpts(last),extra)); charts.push(ch); return ch;};
   // Kurs
@@ -177,6 +177,8 @@ async function openDetail(id){
     priceFormat:{type:'custom',formatter:pf,minMove:0.0001}});
   cs.setData(T.map((t,i)=>({time:t,open:D.o[i],high:D.h[i],low:D.l[i],close:D.c[i]})));
   cs.attachPrimitive(new WyOverlay(D));
+  // Custom trade lines (Evelyn 2026-11-02): entry solid, stop dashed, target dotted; gray, no labels, like the range lines; nothing when empty
+  {const P=D.cst||{}; [[P.entry_price,0],[P.stop,2],[P.target,1]].forEach(([p,ls])=>{if(p!=null&&isFinite(p)) cs.createPriceLine({price:+p,color:G.m,lineWidth:1,lineStyle:ls,axisLabelVisible:false,title:''});});}
   {const md=D.verdict?D.verdict.date:(D.cst&&D.cst.added?D.cst.added:null); if(md){const k=T.findIndex(t=>t>md); const tt=k<0?T[n-1]:T[k];
     cs.setMarkers([{time:tt,position:'aboveBar',color:G.w,shape:'arrowDown',text:(D.verdict?'Urteil ':'hinzugefügt ')+dDE(md).slice(0,6)}]);}}
   $('#pl0').innerHTML=`Kurs <b id="hov" class="hov"></b><small>hohl = steigend · grau gefüllt = fallend · Ereignisse mit Bewertung ●○ (0–5), weiß hinterlegt = Top, ✦ = außergewöhnlich</small>`;
@@ -220,7 +222,7 @@ async function openDetail(id){
   renderSide(D); infoize();
 }
 function customH(C){if(!C)return'';
-  return `<h3>Custom</h3><dl class="kv"><dt>Gruppe</dt><dd>${esc(C.gruppe)}</dd><dt>Hinzugefügt</dt><dd>${C.added?dDE(C.added):'–'}</dd>
+  return `<h3>Custom</h3><dl class="kv"><dt>Gruppe</dt><dd>${esc(CGRP[C.gruppe]||C.gruppe)}</dd>${['entry_date','entry_price','stop','target','exit_date','exit_price','result_r'].filter(k=>C[k]!=null).map(k=>`<dt>${({entry_date:'Einstieg am',entry_price:'Einstieg',stop:'Stopp',target:'Ziel',exit_date:'Ausstieg am',exit_price:'Ausstieg',result_r:'Ergebnis (R)'})[k]}</dt><dd>${/date/.test(k)?dDE(C[k]):k==='result_r'?nf(C[k],2):pf(C[k])}</dd>`).join('')}<dt>Hinzugefügt</dt><dd>${C.added?dDE(C.added):'–'}</dd>
     <dt>Scanner heute (v5)</dt><dd>${esc(C.scanner_now||'–')}</dd><dt>Kurs seit hinzugefügt</dt><dd>${C.pct==null?'–':(C.pct>0?'+':'')+nf(C.pct,1)+' %'} <span class="note">${pf(C.base)} (${C.base_date?dDE(C.base_date):''}) → ${pf(C.last)}</span></dd>
     <dt>Hoch / Tief seither</dt><dd>${pf(C.hi)} / ${pf(C.lo)}</dd></dl>${C.notiz?`<p class="note">${esc(C.notiz)}</p>`:''}`;}
 function verdictH(V){if(!V)return'';
@@ -270,16 +272,28 @@ function closeDetail(){ $('#detail').hidden=true; document.body.style.overflow='
 function step(d){const o=isCustom(curId)?(B.custom||[]).filter(c=>c.f).map(c=>c.id):isTest(curId)?(B.tests||[]).filter(c=>c.f).map(c=>c.id):order; const k=o.indexOf(curId); const j=o[k+d]; if(j) openDetail(j);}
 
 /* ---------- Legende ---------- */
+const CCOLS=['Watch','Positionen','Postmortem Fail','Postmortem Success'], CGRP={watch:'Watch',position:'Position',pm_fail:'Postmortem',pm_success:'Postmortem'};
+const CDESC=['Aktien, die du beobachtest.','Offene Positionen: Einstieg, Stopp, Ziel als graue Linien im Chart.','Verkauft mit Ergebnis ≤ 0 R (Breakeven zählt als Fail).','Verkauft mit Ergebnis > 0 R.'];
+// Custom board (Evelyn 2026-11-02): 4 columns like the main board, same scanner (v5), same detail view
 function renderCustom(){
-  const C=B.custom||[], G4={gekauft:'Gekauft',beobachtet:'Beobachtet',postmortem:'Postmortem (verkauft)',nicht_gekauft:'Bewusst nicht gekauft'};
-  let h=`<h2>Custom <small>${C.length} Aktien</small></h2><p class="note">Aktien, die du nennst, durch denselben Scanner wie das Board (v5). Pfeil im Chart = Tag, an dem sie hinzukam; Kursänderung seitdem. Ohne Struktur: Chart mit Grund.</p>`;
-  if(!C.length) h+=`<p style="margin-top:18px">Noch leer. Sag Holy Stocks im Chat, welche Ticker hier rein sollen.</p>`;
-  for(const g of Object.keys(G4)){const L=C.filter(c=>(c.v||{}).gruppe===g); if(!L.length)continue;
-    h+=`<h3 style="margin-top:18px">${G4[g]} <small>${L.length}</small></h3><div class="tlist">${L.map(c=>{const V=c.v||{};return `<button class="trow" data-c="${esc(c.id)}"${c.f?'':' disabled'}><b>${esc(c.sym)}</b><span class="nm">${esc(c.name)}</span>
-     <span><small>Notiz${V.added?' · '+dDE(V.added):''}</small>${esc(V.notiz||'–')}</span><span><small>Scanner heute</small>${esc(c.miss?(c.f?'keine Struktur':c.miss):(c.rej?'verworfen':'Struktur, Score '+nf(c.q)))}</span>
-     <span class="pc">${V.pct==null?'–':(V.pct>0?'+':'')+nf(V.pct,1)+' %'}</span></button>`;}).join('')}</div>`;}
-  $('#pCustom').innerHTML=h;
-  $$('#pCustom [data-c]').forEach(b=>b.onclick=()=>openDetail(b.dataset.c));
+  const C=B.custom||[], el=$('#pCustom'); el.innerHTML='';
+  if(!C.length){el.innerHTML=`<p style="margin:18px 6px">Noch leer. Sag Holy Stocks im Chat, welche Ticker hier rein sollen.</p>`;return;}
+  CCOLS.forEach((name,ci)=>{
+    const L=C.filter(c=>(c.cc??0)===ci).sort((a,b)=>(a.q==null)-(b.q==null)||!!a.rej-!!b.rej||(b.q??0)-(a.q??0));
+    const col=document.createElement('section'); col.className='col';
+    col.innerHTML=`<div class="colh"><div class="n">0${ci+1}</div><h2>${name}<small>${L.length}</small></h2><p>${CDESC[ci]}</p><div class="prog"><i style="left:${ci*25}%;width:25%"></i></div></div>`;
+    L.forEach((c,k)=>{const V=c.v||{};
+      const b=document.createElement('button'); b.className='card'; b.dataset.c=c.id; if(!c.f) b.disabled=true;
+      const st=c.miss?(c.f?'keine Struktur':c.miss):(c.rej?'verworfen':'Struktur');
+      const r=V.result_r!=null?` · ${V.result_r>0?'+':''}${nf(V.result_r,1)} R`:'';
+      b.innerHTML=`<div class="hd"><span class="tk"><span class="rank">${k+1}</span>${esc(c.sym)}</span><span class="nm">${esc(V.notiz||c.name)}</span></div>
+        <div class="gl">${c.ph?rose(c.ph,B.avg,58):''}<div class="sc">${c.q==null?'–':nf(c.q)}</div></div><canvas></canvas>
+        <div class="fx"><span>${esc(st)}</span><span>${V.pct==null?'–':(V.pct>0?'+':'')+nf(V.pct,1)+' %'}${r}</span></div>`;
+      b.onclick=()=>openDetail(c.id);
+      b.onmousemove=e=>tip(e,`<b>${esc(c.sym)}</b> · ${esc(V.notiz||'')}<br>${esc(V.scanner_now||c.miss||'')}`); b.onmouseleave=()=>tip();
+      col.appendChild(b);});
+    el.appendChild(col);});
+  requestAnimationFrame(()=>$$('#pCustom .card').forEach(b=>{const c=C.find(z=>z.id===b.dataset.c); if(c&&c.m) mini(b.querySelector('canvas'),c.m);}));
 }
 function renderTests(){
   const T=B.tests||[];
