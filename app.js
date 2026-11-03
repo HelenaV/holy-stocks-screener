@@ -155,6 +155,31 @@ class WyOverlay{
   });}
 }
 function rr(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+function vMedian(v,a,b){const s=[]; for(let i=a;i<=b;i++) if(v[i]!=null&&isFinite(v[i])) s.push(v[i]); if(!s.length) return 0; s.sort((x,y)=>x-y); const m=s.length>>1; return s.length%2?s[m]:(s[m-1]+s[m])/2;}
+// OLS of volume on bar index, inputs clipped at 4× median so one spike does not tilt the fit
+function vTrend(D){const A=(D.spans||[]).find(s=>s.ph==='A'), B=(D.spans||[]).find(s=>s.ph==='B'); if(!A||!B||!(B.i1>A.i0)||A.i0<0||B.i1>=D.v.length) return null;
+  const md=vMedian(D.v,A.i0,B.i1); if(!(md>0)) return null; const clip=4*md; let n=0,sx=0,sy=0,sxx=0,sxy=0;
+  for(let i=A.i0;i<=B.i1;i++){const y=Math.min(D.v[i],clip); n++; sx+=i; sy+=y; sxx+=i*i; sxy+=i*y;}
+  const den=n*sxx-sx*sx; if(!den) return null; const sl=(n*sxy-sx*sy)/den, ic=(sy-sl*sx)/n; return {i0:A.i0,i1:B.i1,y0:ic+sl*A.i0,y1:ic+sl*B.i1};}
+function vMult(x){const r=Math.round(x*10)/10; return (r>=10||Math.abs(r-Math.round(r))<1e-6?String(Math.round(r)):r.toFixed(1).replace('.',','))+'×';}
+// tips + true multiple above volume bars cut at the visible cap (Evelyn 2026-11-03)
+class VolCap{
+  constructor(D){this.D=D; this.cap=Infinity; this.med=0;}
+  attached(p){this.chart=p.chart; this.series=p.series;}
+  detached(){} updateAllViews(){}
+  paneViews(){const s=this; return [{zOrder:()=>'top',renderer:()=>({draw:t=>s.draw(t)})}];}
+  draw(target){const cap=this.cap, med=this.med; if(!(med>0)||!isFinite(cap)) return;
+    target.useMediaCoordinateSpace(({context:ctx})=>{
+      const y=this.series.priceToCoordinate(cap); if(y==null) return;
+      const ts=this.chart.timeScale(), D=this.D, bs=ts.options().barSpacing||6;
+      const bw=Math.max(1,Math.round(bs)-(Math.ceil(bs)<=1?0:1)), yT=y-5;
+      ctx.save(); ctx.textAlign='center'; ctx.textBaseline='bottom'; ctx.font='9px Inter,Helvetica Neue,system-ui,sans-serif';
+      for(let i=0;i<D.t.length;i++){const v=D.v[i]; if(!(v>cap)) continue; const x=ts.timeToCoordinate(D.t[i]); if(x==null) continue;
+        ctx.fillStyle=D.c[i]>=D.o[i]?'#cfcfcf':'#555'; ctx.beginPath(); ctx.moveTo(x-bw/2,y+1); ctx.lineTo(x+bw/2,y+1); ctx.lineTo(x,yT); ctx.closePath(); ctx.fill();
+        ctx.fillStyle='#8a8a8a'; ctx.fillText(vMult(v/med),x,yT-1);}
+      ctx.restore();
+    });}
+}
 
 function baseOpts(dateLabel){return{autoSize:true,layout:{attributionLogo:false,background:{type:'solid',color:G.bg},textColor:G.m,fontSize:11,fontFamily:'Inter,Helvetica Neue,system-ui,sans-serif'},
   grid:{vertLines:{visible:false},horzLines:{color:'#151515'}},rightPriceScale:{borderColor:'#222',minimumWidth:78},
@@ -184,9 +209,16 @@ async function openDetail(id){
   {const md=D.verdict?D.verdict.date:(D.cst&&D.cst.added?D.cst.added:null); if(md){const k=T.findIndex(t=>t>md); const tt=k<0?T[n-1]:T[k];
     cs.setMarkers([{time:tt,position:'aboveBar',color:G.w,shape:'arrowDown',text:(D.verdict?'Urteil ':'hinzugefügt ')+dDE(md).slice(0,6)}]);}}
   $('#pl0').innerHTML=`Kurs <b id="hov" class="hov"></b><small>hohl = steigend · grau gefüllt = fallend · Ereignisse mit Bewertung ●○ (0–5), weiß hinterlegt = Top, ✦ = außergewöhnlich</small>`;
-  // Volumen
-  const c1=mk(1); const vs=c1.addHistogramSeries({priceFormat:{type:'volume'},priceLineVisible:false,lastValueVisible:false});
-  vs.setData(T.map((t,i)=>({time:t,value:D.v[i],color:D.c[i]>=D.o[i]?'#cfcfcf':'#555'})));
+  // Volumen (Evelyn 2026-11-03): axis capped at 4× median of the visible bars; cut bars get a tip and the true multiple. Trend is the OLS line from the start of phase A to the end of phase B.
+  const c1=mk(1,false,{rightPriceScale:{borderColor:'#222',minimumWidth:78,scaleMargins:{top:.18,bottom:.1}}});
+  const vs=c1.addHistogramSeries({priceFormat:{type:'volume'},priceLineVisible:false,lastValueVisible:false});
+  const vOv=new VolCap(D); vs.attachPrimitive(vOv);
+  const vFit=vTrend(D);
+  const vt=vFit&&c1.addLineSeries({color:'#e6e6e6',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+  // seed the time scale (capped on all bars); vApply recaps to the visible window before paint
+  {const md=vMedian(D.v,0,n-1), cap=md>0?4*md:Infinity; vOv.med=md; vOv.cap=cap;
+    vs.setData(T.map((t,i)=>({time:t,value:Math.min(D.v[i],cap),color:D.c[i]>=D.o[i]?'#cfcfcf':'#555'})));
+    if(vt) vt.setData([{time:T[vFit.i0],value:Math.max(0,Math.min(vFit.y0,cap))},{time:T[vFit.i1],value:Math.max(0,Math.min(vFit.y1,cap))}]);}
   // Weis
   const c2=mk(2); const ws=c2.addHistogramSeries({priceFormat:{type:'volume'},priceLineVisible:false,lastValueVisible:false});
   ws.setData(T.map((t,i)=>({time:t,value:D.weis[i],color:D.wdir[i]>0?'#cfcfcf':'#555'})));
@@ -210,8 +242,24 @@ async function openDetail(id){
     $('#pl5').innerHTML=`Markttrend <small>${esc(D.mkt.idx)} ${esc(D.mkt.state)} · weiß Index, grau SMA 50, grau gestrichelt SMA 200</small>`;}
   else{const e=s5=c5.addLineSeries({visible:false,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}); e.setData(T.map(t=>({time:t,value:0}))); $('#pl5').innerHTML='Markttrend <small>nicht geladen</small>';}
   // Zeitachsen koppeln
-  let lock=false;
+  let lock=false, vKey='', vRaf=0;
+  const vApply=()=>{
+    if(curId!==id||!charts.includes(c1)) return;
+    const r=c1.timeScale().getVisibleLogicalRange();
+    if(!r){ if(!vRaf) vRaf=requestAnimationFrame(()=>{vRaf=0; vApply();}); return; }
+    if(vRaf){ cancelAnimationFrame(vRaf); vRaf=0; }
+    const a=Math.max(0,Math.ceil(r.from-.5)), b=Math.min(n-1,Math.floor(r.to+.5)); if(b<a) return;
+    const key=a+':'+b; if(key===vKey) return;
+    const md=vMedian(D.v,a,b), cap=md>0?4*md:Infinity; vOv.med=md; vOv.cap=cap;
+    const keep={from:r.from,to:r.to};
+    lock=true;
+    vs.setData(T.map((t,i)=>({time:t,value:Math.min(D.v[i],cap),color:D.c[i]>=D.o[i]?'#cfcfcf':'#555'})));
+    if(vt) vt.setData([{time:T[vFit.i0],value:Math.max(0,Math.min(vFit.y0,cap))},{time:T[vFit.i1],value:Math.max(0,Math.min(vFit.y1,cap))}]);
+    const now=c1.timeScale().getVisibleLogicalRange();
+    if(now&&(Math.abs(now.from-keep.from)>1e-4||Math.abs(now.to-keep.to)>1e-4)) c1.timeScale().setVisibleLogicalRange(keep);
+    lock=false; vKey=key;};
   charts.forEach(ch=>ch.timeScale().subscribeVisibleLogicalRangeChange(r=>{if(lock||!r)return;lock=true;charts.forEach(o=>o!==ch&&o.timeScale().setVisibleLogicalRange(r));lock=false;}));
+  c1.timeScale().subscribeVisibleLogicalRangeChange(()=>{if(vRaf) return; vRaf=requestAnimationFrame(()=>{vRaf=0; vApply();});});
   const ser=[cs,vs,ws,hs,s4,s5];
   // R-S-06: date of the hovered candle in the price header (always, also with tooltips off)
   const ix=new Map(T.map((t,i)=>[t,i])), hov=$('#hov');
@@ -221,6 +269,7 @@ async function openDetail(id){
   charts.forEach((ch,k)=>ch.subscribeCrosshairMove(p=>{showHov(p.time??null); charts.forEach((o,j)=>{if(o===ch)return; if(!p.time){o.clearCrosshairPosition();return;} const s=ser[j]; if(s) o.setCrosshairPosition(NaN,p.time,s);});}));
   // R-S-05: start the view at the prior high or ~120 bars before the PS (whichever is shorter)
   const from=Math.max(0,D.view0??((D.box.i0??0)-20)); lock=true; charts.forEach(ch=>ch.timeScale().setVisibleLogicalRange({from,to:n+8})); lock=false;
+  vApply();
   renderSide(D); infoize();
 }
 function customH(C){if(!C)return'';
