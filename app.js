@@ -6,7 +6,7 @@ const pf=p=>p==null?'–':(Math.abs(p)>=1000?p.toLocaleString('de-DE',{maximumFr
 const dDE=s=>{const[y,m,d]=s.split('-');return `${d}.${m}.${y}`;};
 const G={w:'#f2f2f2',l:'#d0d0d0',m:'#9a9a9a',d:'#6a6a6a',x:'#3a3a3a',bg:'#0a0a0a'};
 const COLDESC=['Spanne steht, Tests an beiden Rändern, noch kein Spring.','Spring oder Test am unteren Rand, Kurs noch unter der Mittellinie.','Nach dem Spring auf dem Weg zum Creek, bis JAC/Ausbruch.','Ab BUEC/Backup: Fortsetzung nach oben oder seitwärts über dem Creek.'];
-let B=null, order=[], tips=false, RULES={};
+let B=null, order=[], tips=false, RULES={}, EXPL={};
 
 /* ---------- glyph: Nightingale-Rose, 4 Blätter A B C D, Ring = Board-Durchschnitt ---------- */
 let SD={A:8,B:8,C:15,D:15};
@@ -48,6 +48,8 @@ function renderBoard(){
   requestAnimationFrame(()=>$$('.card').forEach(b=>mini(b.querySelector('canvas'),B.cards.find(c=>c.id===b.dataset.id).m)));
 }
 function esc(s){return String(s??'').replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));}
+const CFGDE={breakout_without_ut_or_spring:'Ausbruch ohne UT oder Spring',erratic_range:'erratische Spanne',jac_too_high:'JAC zu hoch',new_climax:'neuer Climax',no_prior_decline:'kein Abwärtstrend davor',phase_b_too_short:'Phase B zu kurz',phase_e_too_late:'zu spät (Phase E)',range_not_respected:'Spanne nicht eingehalten',sc_above_older_low:'SC über älterem Tief',sc_stepping_base:'gestufte Tiefs vor dem SC',top_near_prior_high:'Oberkante nah am Vorhoch',ut_too_high:'UT zu hoch'};
+function deTxt(s){return String(s??'').replace(/\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b/g,w=>CFGDE[w]||w);}
 function mini(cv,m){
   const dpr=window.devicePixelRatio||1, W=cv.clientWidth, H=cv.clientHeight; cv.width=W*dpr; cv.height=H*dpr;
   const ctx=cv.getContext('2d'); ctx.scale(dpr,dpr);
@@ -168,7 +170,7 @@ async function openDetail(id){
   const D=await (await fetch('data/s/'+c.f)).json(); if(curId!==id)return;
   charts.forEach(ch=>ch.remove()); charts=[];
   $('#dSym').textContent=D.sym; $('#dName').textContent=D.name;
-  $('#dMeta').innerHTML=`<span>${isTest(id)?(isCustom(id)?'Custom · '+esc(CGRP[(D.cst||{}).gruppe]||(D.cst||{}).gruppe||'')+' · ':'Test-Stock · ')+esc(D.colName)+(c.rej?' · '+esc(c.rej):''):D.colName+(B.cards.some(z=>z.id===id)?'':(c.rej?' · nicht auf dem Board – '+esc(c.rej):' · nicht auf dem Board (beurteilter Fall)'))}</span><span>Daten bis ${dDE(D.asof)}</span><span class="big">${nf(D.q)}</span>`;
+  $('#dMeta').innerHTML=`<span>${isTest(id)?(isCustom(id)?'Custom · '+esc(CGRP[(D.cst||{}).gruppe]||deTxt((D.cst||{}).gruppe)||'')+' · ':'Test-Stock · ')+esc(D.colName)+(c.rej?' · '+esc(deTxt(c.rej)):''):D.colName+(B.cards.some(z=>z.id===id)?'':(c.rej?' · nicht auf dem Board – '+esc(deTxt(c.rej)):' · nicht auf dem Board (beurteilter Fall)'))}</span><span>Daten bis ${dDE(D.asof)}</span><span class="big">${nf(D.q)}</span>`;
   const LW=window.LightweightCharts, T=D.t, n=T.length;
   const mk=(k,dateLabel=false,extra={})=>{const ch=LW.createChart($('#c'+k),Object.assign(baseOpts(dateLabel),extra)); charts.push(ch); return ch;};
   // Kurs
@@ -222,12 +224,12 @@ async function openDetail(id){
   renderSide(D); infoize();
 }
 function customH(C){if(!C)return'';
-  return `<h3>Custom</h3><dl class="kv"><dt>Gruppe</dt><dd>${esc(CGRP[C.gruppe]||C.gruppe)}</dd>${['entry_date','entry_price','stop','target','exit_date','exit_price','result_r'].filter(k=>C[k]!=null).map(k=>`<dt>${({entry_date:'Einstieg am',entry_price:'Einstieg',stop:'Stopp',target:'Ziel',exit_date:'Ausstieg am',exit_price:'Ausstieg',result_r:'Ergebnis (R)'})[k]}</dt><dd>${/date/.test(k)?dDE(C[k]):k==='result_r'?nf(C[k],2):pf(C[k])}</dd>`).join('')}<dt>Hinzugefügt</dt><dd>${C.added?dDE(C.added):'–'}</dd>
-    <dt>Scanner heute (v5)</dt><dd>${esc(C.scanner_now||'–')}</dd><dt>Kurs seit hinzugefügt</dt><dd>${C.pct==null?'–':(C.pct>0?'+':'')+nf(C.pct,1)+' %'} <span class="note">${pf(C.base)} (${C.base_date?dDE(C.base_date):''}) → ${pf(C.last)}</span></dd>
+  return `<h3>Custom</h3><dl class="kv"><dt>Gruppe</dt><dd>${esc(CGRP[C.gruppe]||deTxt(C.gruppe))}</dd>${['entry_date','entry_price','stop','target','exit_date','exit_price','result_r'].filter(k=>C[k]!=null).map(k=>`<dt>${({entry_date:'Einstieg am',entry_price:'Einstieg',stop:'Stopp',target:'Ziel',exit_date:'Ausstieg am',exit_price:'Ausstieg',result_r:'Ergebnis (R)'})[k]}</dt><dd>${/date/.test(k)?dDE(C[k]):k==='result_r'?nf(C[k],2):pf(C[k])}</dd>`).join('')}<dt>Hinzugefügt</dt><dd>${C.added?dDE(C.added):'–'}</dd>
+    <dt>Scanner heute (v5)</dt><dd>${esc(deTxt(C.scanner_now)||'–')}</dd><dt>Kurs seit hinzugefügt</dt><dd>${C.pct==null?'–':(C.pct>0?'+':'')+nf(C.pct,1)+' %'} <span class="note">${pf(C.base)} (${C.base_date?dDE(C.base_date):''}) → ${pf(C.last)}</span></dd>
     <dt>Hoch / Tief seither</dt><dd>${pf(C.hi)} / ${pf(C.lo)}</dd></dl>${C.notiz?`<p class="note">${esc(C.notiz)}</p>`:''}`;}
 function verdictH(V){if(!V)return'';
   return `<h3>Urteil</h3><dl class="kv"><dt>Evelyn</dt><dd>${esc(V.evelyn)}</dd><dt>Datum</dt><dd>${dDE(V.date)}${V.last_date&&V.last_date!==V.date?' (zuletzt '+dDE(V.last_date)+')':''}</dd>
-    <dt>Scanner damals</dt><dd>${esc(V.scanner_then)}</dd><dt>Scanner heute (v5)</dt><dd>${esc(V.scanner_now||'–')}</dd>
+    <dt>Scanner damals</dt><dd>${esc(deTxt(V.scanner_then))}</dd><dt>Scanner heute (v5)</dt><dd>${esc(deTxt(V.scanner_now)||'–')}</dd>
     <dt>Kurs seit Urteil</dt><dd>${V.pct==null?'–':(V.pct>0?'+':'')+nf(V.pct,1)+' %'} <span class="note">${pf(V.base)} (${dDE(V.base_date)}) → ${pf(V.last)}</span></dd>
     <dt>Hoch / Tief seither</dt><dd>${pf(V.hi)} / ${pf(V.lo)}</dd></dl><p class="note">${esc(V.reason)}</p>`;}
 function overview(o){if(!o||!o.c||o.c.length<2)return'';
@@ -243,22 +245,36 @@ function infoize(){$$('.plab').forEach(pl=>{const sm=pl.querySelector(':scope > 
   b.onclick=e=>{e.stopPropagation(); const o=b.classList.toggle('open'); $$('.plab .pi.open').forEach(x=>{if(x!==b)x.classList.remove('open');});};});}
 document.addEventListener('click',()=>$$('.plab .pi.open').forEach(x=>x.classList.remove('open')));
 function renderSide(D){
-  if(!D.box){$('#side').innerHTML=overview(D.ov)+verdictH(D.verdict)+customH(D.cst)+`<p class="note" style="margin:10px 0">Keine Zeichnung: ${esc(D.status)}</p>`;return;}
+  if(!D.box){$('#side').innerHTML=overview(D.ov)+verdictH(D.verdict)+customH(D.cst)+`<p class="note" style="margin:10px 0">Keine Zeichnung: ${esc(deTxt(D.status))}</p>`;return;}
   const P={A:'Phase A · Stopp des Abwärtstrends',B:'Phase B · Aufbau der Ursache',C:'Phase C · Spring / Test',D:'Phase D · Markup bis Konsolidierung'};
-  let h=overview(D.ov)+verdictH(D.verdict)+customH(D.cst)+(D.box?'':`<p class="note" style="margin:10px 0">Keine Zeichnung: ${esc(D.status)}</p>`)+`<h3>Score</h3><div style="display:flex;align-items:center;gap:14px">${rose(D.phases,D.avg,130,{labels:true})}<div><div style="font-size:34px;font-weight:300;line-height:1">${nf(D.q)}</div>
+  let h=overview(D.ov)+verdictH(D.verdict)+customH(D.cst)+(D.box?'':`<p class="note" style="margin:10px 0">Keine Zeichnung: ${esc(deTxt(D.status))}</p>`)+`<h3>Score</h3><div style="display:flex;align-items:center;gap:14px">${rose(D.phases,D.avg,130,{labels:true})}<div><div style="font-size:34px;font-weight:300;line-height:1">${nf(D.q)}</div>
     <div class="note">v4: ${nf(D.q4)}</div><div style="margin-top:8px">Konfidenz <span style="letter-spacing:1px">${dots(D.conf)}</span></div></div></div>
     <div class="note" style="margin-top:6px">Blatt größer als der gestrichelte Ring = Phase besser als der Board-Durchschnitt.</div>
     <div class="flagline">${D.funnel.true?`<span class="chip on">${funnelIcon(10).replace(G.w,'#000')} echter Trichter</span>`:''}${D.spring?`<span class="chip">${esc(D.spring.kind)}${D.spring.conf?'':'?'}${D.spring.ok?'':' · Test fehlt'}</span>`:(D.box?'<span class="chip">kein Spring · Abzug</span>':'')}</div>`;
-  const rowH=r=>{const ru=r.id&&RULES[r.id], t=ru?`${r.id} · ${ru.t}\n\n${ru.x}`:'';
-    return `<div class="row"><span>${esc(r.k)}${ru?` <button class="info" data-r="${esc(r.id)}" title="${esc(t)}" aria-label="Regel ${esc(r.id)}">ⓘ</button>`:''}</span><span class="bar"><i style="width:${100*r.p/r.m}%"></i></span><em>${nf(r.p,1)}/${r.m}</em></div>`
-      +(r.n?`<div class="rnote">${esc(r.n)}</div>`:'')+(ru?`<div class="rinfo" data-for="${esc(r.id)}" hidden><b>${esc(r.id)} · ${esc(ru.t)}</b><br>${esc(ru.x).replace(/\n/g,'<br>')}</div>`:'');};
+  const rowH=(r,key)=>{
+    const ex=Array.isArray(EXPL[r.k])?EXPL[r.k]:null;
+    const ru=(r.id&&RULES[r.id])||(ex&&ex[2]&&RULES[ex[2]])||null;
+    const s1=ex&&ex[0]!=null?String(ex[0]):'', s2=ex&&ex[1]!=null?String(ex[1]):'';
+    const show=!!(ex||ru), title=s1&&s2?s1+' '+s2:(s1||s2);
+    const btn=show?` <button class="info" data-r="${esc(key)}"${title?` title="${esc(title)}"`:''} aria-label="Erklärung">ⓘ</button>`:'';
+    let info='';
+    if(show){
+      let b='';
+      if(s1) b+=`<p class="ri1">${esc(s1)}</p>`;
+      if(s2) b+=`<p class="ri2">${esc(s2)}</p>`;
+      if(ru) b+=`<p class="rid">Genauer: ${esc(ru.d).replace(/\n/g,'<br>')}</p><div class="rmeta">${esc(ru.m)}</div>`;
+      info=`<div class="rinfo" data-for="${esc(key)}" hidden>${b}</div>`;
+    }
+    return `<div class="row"><span>${esc(r.k)}${btn}</span><span class="bar"><i style="width:${100*r.p/r.m}%"></i></span><em>${nf(r.p,1)}/${r.m}</em></div>`
+      +(r.n?`<div class="rnote">${esc(r.n)}</div>`:'')+info;
+  };
   const sec=(p,title,sub)=>{const rows=D.bd[p]||[]; let x=`<div class="ph"><div class="phh"><b>${title}</b><span>${D.phases[p]==null?'–':nf(D.phases[p],0)} <small class="note">Ø ${nf(D.avg[p],0)}</small></span></div>`;
     if(sub) x+=`<div class="note" style="margin-bottom:4px">${sub}</div>`;
-    if(!rows.length) x+='<div class="note">nicht anwendbar</div>'; rows.forEach(r=>{x+=rowH(r);}); return x+'</div>';};
+    if(!rows.length) x+='<div class="note">nicht anwendbar</div>'; rows.forEach((r,i)=>{x+=rowH(r,p+'-'+i);}); return x+'</div>';};
   h+='<h3>Gesamt-Akkumulation</h3>'+sec('G','Phasenübergreifend','gilt für die ganze Akkumulation, nicht Teil der Rose');
   h+='<h3>Bewertung je Phase</h3>';
   for(const p of 'ABCD') h+=sec(p,P[p]);
-  if(D.spring){const s=D.spring; h+=`<h3>Spring (v5)</h3><dl class="kv"><dt>Typ (R-C-09…11)</dt><dd>${esc(s.kind)}${s.conf?'':' (möglich, noch kein JAC)'}</dd><dt>Volumen am Spring</dt><dd>${nf(s.vr,1)} × Median (schwer ≥ 2,0 · kein erhöhtes ≤ 1,2)</dd><dt>Stich unter die Spanne</dt><dd>${nf(s.da,1)} ATR (tief ≥ 1,5)</dd><dt>Test</dt><dd>${s.nt?(s.ht?'nötig, vorhanden':'nötig, fehlt – zählt nicht als Spring'):'nicht nötig'}</dd><dt>Dauer unter dem Tief</dt><dd>${s.dur} ${s.dur===1?'Kerze':'Kerzen'}</dd><dt>Weiteste Kerze</dt><dd>${nf(s.wide,2)} ATR</dd>
+  if(D.spring){const s=D.spring; h+=`<h3>Spring (v5)</h3><dl class="kv"><dt>Typ</dt><dd>${esc(s.kind)}${s.conf?'':' (möglich, noch kein JAC)'}</dd><dt>Volumen am Spring</dt><dd>${nf(s.vr,1)} × Median (schwer ≥ 2,0 · kein erhöhtes ≤ 1,2)</dd><dt>Stich unter die Spanne</dt><dd>${nf(s.da,1)} ATR (tief ≥ 1,5)</dd><dt>Test</dt><dd>${s.nt?(s.ht?'nötig, vorhanden':'nötig, fehlt – zählt nicht als Spring'):'nicht nötig'}</dd><dt>Dauer unter dem Tief</dt><dd>${s.dur} ${s.dur===1?'Kerze':'Kerzen'}</dd><dt>Weiteste Kerze</dt><dd>${nf(s.wide,2)} ATR</dd>
     <dt>Volumen/Kerzenweg (rot)</dt><dd>${nf(s.vc,2)}</dd><dt>Eindringtiefe</dt><dd>${nf(s.pen,2)} Spannenhöhen</dd><dt>Teilnoten kurz · lang · leise · flach</dt><dd>${[s.parts.kurz,s.parts.lang,s.parts.leise,s.parts.flach].map(v=>nf(v,1)).join(' · ')}</dd></dl>`;}
   if(D.funnel.score!=null) h+=`<h3>Trichter</h3><dl class="kv"><dt>Trichter-Wert</dt><dd>${nf(D.funnel.score,2)}</dd><dt>Amplituden-Trend (Spearman)</dt><dd>${nf(D.funnel.rho,2)}</dd><dt>letzte/erste Welle</dt><dd>${nf(D.funnel.lf,2)}</dd><dt>echter Trichter</dt><dd>${D.funnel.true?'ja':'nein'}</dd></dl>`;
   const pl=D.plan;
@@ -284,13 +300,13 @@ function renderCustom(){
     col.innerHTML=`<div class="colh"><div class="n">0${ci+1}</div><h2>${name}<small>${L.length}</small></h2><p>${CDESC[ci]}</p><div class="prog"><i style="left:${ci*25}%;width:25%"></i></div></div>`;
     L.forEach((c,k)=>{const V=c.v||{};
       const b=document.createElement('button'); b.className='card'; b.dataset.c=c.id; if(!c.f) b.disabled=true;
-      const st=c.miss?(c.f?'keine Struktur':c.miss):(c.rej?'verworfen':'Struktur');
+      const st=c.miss?(c.f?'keine Struktur':esc(deTxt(c.miss))):(c.rej?'verworfen':'Struktur');
       const r=V.result_r!=null?` · ${V.result_r>0?'+':''}${nf(V.result_r,1)} R`:'';
       b.innerHTML=`<div class="hd"><span class="tk"><span class="rank">${k+1}</span>${esc(c.sym)}</span><span class="nm">${esc(c.name&&c.name!==c.sym?c.name:'')}</span>${V.notiz?`<span class="nm nt">${esc(V.notiz)}</span>`:''}</div>
         <div class="gl">${c.ph?rose(c.ph,B.avg,58):''}<div class="sc">${c.q==null?'–':nf(c.q)}</div></div><canvas></canvas>
         <div class="fx"><span>${esc(st)}</span><span>${V.pct==null?'–':(V.pct>0?'+':'')+nf(V.pct,1)+' %'}${r}</span></div>`;
       b.onclick=()=>openDetail(c.id);
-      b.onmousemove=e=>tip(e,`<b>${esc(c.sym)}</b> · ${esc(c.name)}${V.notiz?' · '+esc(V.notiz):''}<br>${esc(V.scanner_now||c.miss||'')}`); b.onmouseleave=()=>tip();
+      b.onmousemove=e=>tip(e,`<b>${esc(c.sym)}</b> · ${esc(c.name)}${V.notiz?' · '+esc(V.notiz):''}<br>${esc(deTxt(V.scanner_now||c.miss||''))}`); b.onmouseleave=()=>tip();
       col.appendChild(b);});
     el.appendChild(col);});
   requestAnimationFrame(()=>$$('#pCustom .card').forEach(b=>{const c=C.find(z=>z.id===b.dataset.c); if(c&&c.m) mini(b.querySelector('canvas'),c.m);}));
@@ -305,8 +321,8 @@ function renderTests(){
 }
 function renderLegend(){
   const ex={A:95,B:60,C:null,D:85};
-  $('#pLegend').innerHTML=`<h2>Board</h2><p>Vier Spalten, von links nach rechts reift die Struktur. Je Spalte höchstens zehn Aktien, höchster Score oben; Karten ohne gültigen Spring stehen immer unter allen mit Spring (R-C-12). Phase A und frühe Phase B erscheinen nicht (noch Geister).</p>
-  <h2>Glyphe</h2><div class="lg"><div>${rose(ex,{A:88,B:72,C:60,D:80},110,{labels:true})}</div><div>Nightingale-Rose mit vier Blättern: A oben rechts, dann im Uhrzeigersinn B, C, D (D schließt die Konsolidierung ein). Der graue Ring ist der Durchschnitt aller Board-Aktien in der jeweiligen Phase. Ein Blatt reicht über den Ring hinaus, wenn die Phase besser als der Durchschnitt ist, und bleibt innen, wenn sie schwächer ist. Radius = Ring × (1 + 0,45 × Abstand zum Durchschnitt in Standardabweichungen des Boards), damit kleine Unterschiede sichtbar werden. Ein Punkt statt eines Blatts heißt: Phase nicht anwendbar (z. B. kein Spring, noch kein JAC). Die Zahl darunter ist der Gesamtscore (0–100). Er enthält auch die phasenübergreifenden Punkte der Gesamt-Akkumulation (Spannenhöhe, -breite, relative Ruhe, Abwärtstrend davor …); diese stehen im Detail in einem eigenen Abschnitt und sind kein Blatt der Rose. Das ⓘ neben jedem Punkt zeigt die volle Regel (Quelle: RULES.md).</div>
+  $('#pLegend').innerHTML=`<h2>Board</h2><p>Vier Spalten, von links nach rechts reift die Struktur. Je Spalte höchstens zehn Aktien, höchster Score oben; Karten ohne gültigen Spring stehen immer unter allen mit Spring. Phase A und frühe Phase B erscheinen nicht (noch Geister).</p>
+  <h2>Glyphe</h2><div class="lg"><div>${rose(ex,{A:88,B:72,C:60,D:80},110,{labels:true})}</div><div>Nightingale-Rose mit vier Blättern: A oben rechts, dann im Uhrzeigersinn B, C, D (D schließt die Konsolidierung ein). Der graue Ring ist der Durchschnitt aller Board-Aktien in der jeweiligen Phase. Ein Blatt reicht über den Ring hinaus, wenn die Phase besser als der Durchschnitt ist, und bleibt innen, wenn sie schwächer ist. Radius = Ring × (1 + 0,45 × Abstand zum Durchschnitt in Standardabweichungen des Boards), damit kleine Unterschiede sichtbar werden. Ein Punkt statt eines Blatts heißt: Phase nicht anwendbar (z. B. kein Spring, noch kein JAC). Die Zahl darunter ist der Gesamtscore (0–100). Er enthält auch die phasenübergreifenden Punkte der Gesamt-Akkumulation (Spannenhöhe, -breite, relative Ruhe, Abwärtstrend davor …); diese stehen im Detail in einem eigenen Abschnitt und sind kein Blatt der Rose. Das ⓘ neben jedem Punkt erklärt zuerst, was er bedeutet und wie er berechnet wird; darunter folgen die Details der Regel und zuletzt, wann und von wem sie festgelegt wurde.</div>
   <div>${funnelIcon(16)}</div><div>Echter Trichter: Die Wellen in der Spanne werden von Welle zu Welle kleiner, obere Kante fällt, untere steigt (nach Francis Hunt).</div>
   <div style="font-size:15px;color:#f2f2f2">SC ●●●○○</div><div>Ereignis im Chart mit Bewertung 0–5 Punkten.</div>
   <div><span style="background:#f2f2f2;color:#000;padding:1px 6px;border-radius:3px;font-weight:600">AR ●●●●●</span></div><div>Top-Ereignis (volle Punktzahl): weiß hinterlegt.</div>
@@ -330,6 +346,7 @@ async function init(){
   B=await (await fetch('data/board.json')).json();
   try{B.custom=(await (await fetch('data/custom.json',{cache:'no-cache'})).json()).cards||[];}catch(e){B.custom=[];}
   try{RULES=await (await fetch('data/rules.json')).json();}catch(e){RULES={};}
+  try{EXPL=await (await fetch('data/expl.json')).json();}catch(e){EXPL={};}
   for(const p of 'ABCD'){const v=B.cards.map(c=>c.ph[p]).filter(x=>x!=null), m=v.reduce((a,b)=>a+b,0)/v.length; SD[p]=Math.max(3,Math.sqrt(v.reduce((a,b)=>a+(b-m)**2,0)/v.length));}
   order=[...B.cards].sort((a,b)=>a.col-b.col||(a.ns-b.ns)||b.q-a.q).map(c=>c.id);
   $('#sub').textContent=`Wyckoff-Akkumulationen · Scanner v5 · Testlauf · Daten bis ${dDE(B.asof)}`;
