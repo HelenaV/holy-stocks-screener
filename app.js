@@ -299,7 +299,7 @@ function renderSide(D){
   let h=overview(D.ov)+verdictH(D.verdict)+customH(D.cst)+(D.box?'':`<p class="note" style="margin:10px 0">Keine Zeichnung: ${esc(deTxt(D.status))}</p>`)+`<h3>Score</h3><div style="display:flex;align-items:center;gap:14px">${rose(D.phases,D.avg,130,{labels:true})}<div><div style="font-size:34px;font-weight:300;line-height:1">${nf(D.q)}</div>
     <div class="note">v4: ${nf(D.q4)}</div><div style="margin-top:8px">Konfidenz <span style="letter-spacing:1px">${dots(D.conf)}</span></div></div></div>
     <div class="note" style="margin-top:6px">Blatt größer als der gestrichelte Ring = Phase besser als der Board-Durchschnitt.</div>
-    <div class="flagline">${D.funnel.true?`<span class="chip on">${funnelIcon(10).replace(G.w,'#000')} echter Trichter</span>`:''}${D.spring?`<span class="chip">${esc(D.spring.kind)}${D.spring.conf?'':'?'}${D.spring.ok?'':' · Test fehlt'}</span>`:(D.box?'<span class="chip">kein Spring · Abzug</span>':'')}</div>`;
+    <div class="flagline">${D.funnel.true?`<span class="chip on">${funnelIcon(10).replace(G.w,'#000')} echter Trichter</span>`:''}${D.spring?`<span class="chip">${esc(D.spring.status==='shakeout'?'Shakeout':D.spring.kind)}${D.spring.ok&&!D.spring.conf?'?':''}${D.spring.status==='shakeout'?' · Pflicht-Test fehlt oder ungültig':''}</span>`:(D.box?'<span class="chip">kein Spring · Abzug</span>':'')}</div>`;
   const rowH=(r,key)=>{
     const ex=Array.isArray(EXPL[r.k])?EXPL[r.k]:null;
     const ru=(r.id&&RULES[r.id])||(ex&&ex[2]&&RULES[ex[2]])||null;
@@ -323,8 +323,19 @@ function renderSide(D){
   h+='<h3>Gesamt-Akkumulation</h3>'+sec('G','Phasenübergreifend','gilt für die ganze Akkumulation, nicht Teil der Rose');
   h+='<h3>Bewertung je Phase</h3>';
   for(const p of 'ABCD') h+=sec(p,P[p]);
-  if(D.spring){const s=D.spring; h+=`<h3>Spring (v5)</h3><dl class="kv"><dt>Typ</dt><dd>${esc(s.kind)}${s.conf?'':' (möglich, noch kein JAC)'}</dd><dt>Volumen am Spring</dt><dd>${nf(s.vr,1)} × Median (schwer ≥ 2,0 · kein erhöhtes ≤ 1,2)</dd><dt>Stich unter die Spanne</dt><dd>${nf(s.da,1)} ATR (tief ≥ 1,5)</dd><dt>Test</dt><dd>${s.nt?(s.ht?'nötig, vorhanden':'nötig, fehlt – zählt nicht als Spring'):'nicht nötig'}</dd><dt>Dauer unter dem Tief</dt><dd>${s.dur} ${s.dur===1?'Kerze':'Kerzen'}</dd><dt>Weiteste Kerze</dt><dd>${nf(s.wide,2)} ATR</dd>
-    <dt>Volumen/Kerzenweg (rot)</dt><dd>${nf(s.vc,2)}</dd><dt>Eindringtiefe</dt><dd>${nf(s.pen,2)} Spannenhöhen</dd><dt>Teilnoten kurz · lang · leise · flach</dt><dd>${[s.parts.kurz,s.parts.lang,s.parts.leise,s.parts.flach].map(v=>nf(v,1)).join(' · ')}</dd></dl>`;}
+  if(D.spring){
+    const s=D.spring;
+    const description=s.explanation||s.kind;
+    h+=`<h3>Spring / Shakeout</h3><p>${esc(description)}</p><dl class="kv">
+      <dt>Deutung</dt><dd>${esc(s.status==='shakeout'?'Shakeout (Typ-1-Kandidat ohne gültigen Test)':s.kind)}${s.ok&&!s.conf?' (möglich, noch kein JAC)':''}</dd>
+      <dt>Spring-Punkteanteil</dt><dd>${nf(100*s.q,0)} %</dd>
+      <dt>Volumen der Event-Kerzen</dt><dd>${nf(s.vr,2)} × ${s.status?'vorheriger Durchschnitt':'Median (gespeicherter Stand)'}</dd>
+      <dt>Stich unter die Spanne</dt><dd>${nf(s.da,2)} ATR · ${nf(100*s.pen,1)} % der Range-Höhe</dd>
+      <dt>Test</dt><dd>${s.nt?(s.ht?'Pflicht-Test gültig':'Pflicht-Test fehlt oder ungültig'):s.ok?'kein Pflicht-Test':'Typ noch ungeklärt'}</dd>
+      <dt>Test-/Spring-Volumen</dt><dd>${s.testVolumeRatio==null?'–':nf(100*s.testVolumeRatio,0)+' %'}</dd>
+      <dt>Dauer des Ausflugs</dt><dd>${s.dur} ${s.dur===1?'Kerze':'Kerzen'}</dd></dl>`;
+    if(s.provisional) h+='<p class="note">Messgrenzen und Punktegewichte sind vorläufige Arbeitswerte.</p>';
+  }
   if(D.funnel.score!=null) h+=`<h3>Trichter</h3><dl class="kv"><dt>Trichter-Wert</dt><dd>${nf(D.funnel.score,2)}</dd><dt>Amplituden-Trend (Spearman)</dt><dd>${nf(D.funnel.rho,2)}</dd><dt>letzte/erste Welle</dt><dd>${nf(D.funnel.lf,2)}</dd><dt>echter Trichter</dt><dd>${D.funnel.true?'ja':'nein'}</dd></dl>`;
   const pl=D.plan;
   if(pl) h+=`<h3>Handelsplan</h3><div class="plan"><p>${esc(pl.entry)}</p><dl class="kv"><dt>Letzter Kurs</dt><dd>${pf(pl.last)}</dd><dt>Stopp eng (Mittellinie)</dt><dd>${pf(pl.mid)} <span class="note">${pl.risk_mid>0?'−'+nf(pl.risk_mid,1)+' %':'Kurs darunter'}</span></dd>
