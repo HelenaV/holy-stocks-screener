@@ -284,7 +284,7 @@ function verdictH(V){if(!V)return'';
 // Ein Prüfstand erklärt ausdrücklich, welche historischen Kurse angezeigt werden.
 function referenceH(reference){
   if(!reference)return '';
-  return `<h3>Prüfstand ${dDE(reference.date)}</h3><p>${esc(reference.note)}</p><p><b>Gespeichertes Urteil:</b> ${esc(reference.verdict)}</p>`;
+  return `<h3>Prüfstand ${dDE(reference.date)}</h3><p>${esc(reference.note)}</p><p><b>Gespeichertes Urteil:</b> ${esc(reference.verdict)}</p>${(reference.history||[]).map(judgment=>`<details><summary>Früheres Urteil ${dDE(judgment.date)} (revidiert)</summary><p>${esc(judgment.verdict)}</p></details>`).join('')}`;
 }
 function overview(o){if(!o||!o.c||o.c.length<2)return'';
   const W=300,H=74,n=o.c.length,v=o.c.filter(x=>x!=null),lo=Math.min(...v),hi=Math.max(...v),X=i=>2+i/(n-1)*(W-4),Y=p=>H-4-(p-lo)/(hi-lo||1)*(H-8);
