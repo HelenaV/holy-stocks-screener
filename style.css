@@ -116,3 +116,19 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 @media (hover:hover){.plab .pi:hover .pt{display:block}}
 
 .card .nm.nt{color:var(--g3);opacity:.75;font-size:10.5px}
+
+/* Globale Aktiensuche: auf kleinen Bildschirmen eine eigene Kopfzeile. */
+.stock-search{position:relative;flex:1 1 270px;max-width:420px;margin-bottom:10px;min-width:0}
+.stock-search label{display:block;color:var(--g2);font-size:12px;margin-bottom:4px}
+.search-field{display:flex;border:1px solid var(--g4);border-radius:4px;background:var(--p1)}
+.search-field:focus-within{outline:2px solid var(--g2);outline-offset:2px}
+.search-field input{font:inherit;color:var(--g1);background:transparent;border:0;padding:8px 10px;min-width:0;width:100%;outline:none}
+.search-field button{padding:0 10px;color:var(--g2)}
+.search-results{position:absolute;left:0;right:0;top:100%;list-style:none;margin:4px 0 0;padding:4px;background:var(--p2);border:1px solid var(--g4);border-radius:4px;z-index:15;max-height:360px;overflow-y:auto;box-shadow:0 8px 24px #000}
+.search-results li{padding:9px 8px;cursor:pointer;border-radius:3px;overflow-wrap:anywhere}
+.search-results li:hover,.search-results li[aria-selected="true"]{background:var(--g5)}
+.search-results strong,.search-results span{display:block}
+.search-results span{color:var(--g2);font-size:11px;margin-top:2px}
+.search-status{font-size:11px;color:var(--g3);margin-top:3px}
+.search-status:empty{display:none}
+@media(max-width:700px){.stock-search{order:3;flex-basis:100%;max-width:none}.search-results{max-height:45vh}}

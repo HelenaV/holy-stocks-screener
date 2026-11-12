@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Holy Stocks Screener</title>
 <meta name="robots" content="noindex">
-<link rel="stylesheet" href="style.css?v=20261103b">
+<link rel="stylesheet" href="style.css?v=20261112">
 </head>
 <body>
 <header class="top">
@@ -20,6 +20,15 @@
     <button id="tabCustom" class="tab" role="tab" aria-selected="false">Custom</button>
     <button id="tabLegend" class="tab" role="tab" aria-selected="false">Legende</button>
   </nav>
+  <div id="stockSearch" class="stock-search" role="search">
+    <label for="stockQuery">Aktie suchen</label>
+    <div class="search-field">
+      <input id="stockQuery" type="text" placeholder="Charts werden geladen …" disabled autocomplete="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-controls="stockResults" aria-expanded="false" aria-describedby="stockSearchStatus">
+      <button id="stockClear" type="button" aria-label="Suche leeren" hidden>×</button>
+    </div>
+    <div id="stockSearchStatus" class="search-status" role="status" aria-live="polite"></div>
+    <ul id="stockResults" class="search-results" role="listbox" aria-label="Gefundene Aktien" hidden></ul>
+  </div>
   <label class="toggle"><input type="checkbox" id="tipToggle"> Tooltips</label>
 </header>
 
@@ -61,6 +70,7 @@
 </section>
 <div id="tip" class="tip" hidden></div>
 <script src="lwc.js?v=20261103b" defer></script>
-<script src="app.js?v=20261103b" defer></script>
+<script src="search.js?v=20261112" defer></script>
+<script src="app.js?v=20261112" defer></script>
 </body>
 </html>

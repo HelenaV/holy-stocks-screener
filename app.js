@@ -195,7 +195,7 @@ async function openDetail(id){
   const D=await (await fetch('data/s/'+c.f)).json(); if(curId!==id)return;
   charts.forEach(ch=>ch.remove()); charts=[];
   $('#dSym').textContent=D.sym; $('#dName').textContent=D.name;
-  $('#dMeta').innerHTML=`<span>${isTest(id)?(isCustom(id)?'Custom · '+esc(CGRP[(D.cst||{}).gruppe]||deTxt((D.cst||{}).gruppe)||'')+' · ':'Test-Stock · ')+esc(D.colName)+(c.rej?' · '+esc(deTxt(c.rej)):''):D.colName+(B.cards.some(z=>z.id===id)?'':(c.rej?' · nicht auf dem Board – '+esc(deTxt(c.rej)):' · nicht auf dem Board (beurteilter Fall)'))}</span><span>Daten bis ${dDE(D.asof)}</span><span class="big">${nf(D.q)}</span>`;
+  $('#dMeta').innerHTML=`${D.reference?'<span>Prüfstand '+dDE(D.reference.date)+'</span>':''}<span>${isTest(id)?(isCustom(id)?'Custom · '+esc(CGRP[(D.cst||{}).gruppe]||deTxt((D.cst||{}).gruppe)||'')+' · ':'Test-Stock · ')+esc(D.colName)+(c.rej?' · '+esc(deTxt(c.rej)):''):D.colName+(B.cards.some(z=>z.id===id)?'':(c.rej?' · nicht auf dem Board – '+esc(deTxt(c.rej)):' · nicht auf dem Board (beurteilter Fall)'))}</span><span>Daten bis ${dDE(D.asof)}</span><span class="big">${nf(D.q)}</span>`;
   const LW=window.LightweightCharts, T=D.t, n=T.length;
   const mk=(k,dateLabel=false,extra={})=>{const ch=LW.createChart($('#c'+k),Object.assign(baseOpts(dateLabel),extra)); charts.push(ch); return ch;};
   // Kurs
@@ -281,6 +281,11 @@ function verdictH(V){if(!V)return'';
     <dt>Scanner damals</dt><dd>${esc(deTxt(V.scanner_then))}</dd><dt>Scanner heute (v5)</dt><dd>${esc(deTxt(V.scanner_now)||'–')}</dd>
     <dt>Kurs seit Urteil</dt><dd>${V.pct==null?'–':(V.pct>0?'+':'')+nf(V.pct,1)+' %'} <span class="note">${pf(V.base)} (${dDE(V.base_date)}) → ${pf(V.last)}</span></dd>
     <dt>Hoch / Tief seither</dt><dd>${pf(V.hi)} / ${pf(V.lo)}</dd></dl><p class="note">${esc(V.reason)}</p>`;}
+// Ein Prüfstand erklärt ausdrücklich, welche historischen Kurse angezeigt werden.
+function referenceH(reference){
+  if(!reference)return '';
+  return `<h3>Prüfstand ${dDE(reference.date)}</h3><p>${esc(reference.note)}</p><p><b>Gespeichertes Urteil:</b> ${esc(reference.verdict)}</p>`;
+}
 function overview(o){if(!o||!o.c||o.c.length<2)return'';
   const W=300,H=74,n=o.c.length,v=o.c.filter(x=>x!=null),lo=Math.min(...v),hi=Math.max(...v),X=i=>2+i/(n-1)*(W-4),Y=p=>H-4-(p-lo)/(hi-lo||1)*(H-8);
   let p='';o.c.forEach((c,i)=>{if(c!=null)p+=(p?'L':'M')+X(i).toFixed(1)+','+Y(c).toFixed(1);});
@@ -294,9 +299,9 @@ function infoize(){$$('.plab').forEach(pl=>{const sm=pl.querySelector(':scope > 
   b.onclick=e=>{e.stopPropagation(); const o=b.classList.toggle('open'); $$('.plab .pi.open').forEach(x=>{if(x!==b)x.classList.remove('open');});};});}
 document.addEventListener('click',()=>$$('.plab .pi.open').forEach(x=>x.classList.remove('open')));
 function renderSide(D){
-  if(!D.box){$('#side').innerHTML=overview(D.ov)+verdictH(D.verdict)+customH(D.cst)+`<p class="note" style="margin:10px 0">Keine Zeichnung: ${esc(deTxt(D.status))}</p>`;return;}
+  if(!D.box){$('#side').innerHTML=referenceH(D.reference)+overview(D.ov)+verdictH(D.verdict)+customH(D.cst)+`<p class="note" style="margin:10px 0">Keine Zeichnung: ${esc(deTxt(D.status))}</p>`;return;}
   const P={A:'Phase A · Stopp des Abwärtstrends',B:'Phase B · Aufbau der Ursache',C:'Phase C · Spring / Test',D:'Phase D · Markup bis Konsolidierung'};
-  let h=overview(D.ov)+verdictH(D.verdict)+customH(D.cst)+(D.box?'':`<p class="note" style="margin:10px 0">Keine Zeichnung: ${esc(deTxt(D.status))}</p>`)+`<h3>Score</h3><div style="display:flex;align-items:center;gap:14px">${rose(D.phases,D.avg,130,{labels:true})}<div><div style="font-size:34px;font-weight:300;line-height:1">${nf(D.q)}</div>
+  let h=referenceH(D.reference)+overview(D.ov)+verdictH(D.verdict)+customH(D.cst)+(D.box?'':`<p class="note" style="margin:10px 0">Keine Zeichnung: ${esc(deTxt(D.status))}</p>`)+`<h3>Score</h3><div style="display:flex;align-items:center;gap:14px">${rose(D.phases,D.avg,130,{labels:true})}<div><div style="font-size:34px;font-weight:300;line-height:1">${nf(D.q)}</div>
     <div class="note">v4: ${nf(D.q4)}</div><div style="margin-top:8px">Konfidenz <span style="letter-spacing:1px">${dots(D.conf)}</span></div></div></div>
     <div class="note" style="margin-top:6px">Blatt größer als der gestrichelte Ring = Phase besser als der Board-Durchschnitt.</div>
     <div class="flagline">${D.funnel.true?`<span class="chip on">${funnelIcon(10).replace(G.w,'#000')} echter Trichter</span>`:''}${D.spring?`<span class="chip">${esc(D.spring.status==='shakeout'?'Shakeout':D.spring.kind)}${D.spring.ok&&!D.spring.conf?'?':''}${D.spring.status==='shakeout'?' · Pflicht-Test fehlt oder ungültig':''}</span>`:(D.box?'<span class="chip">kein Spring · Abzug</span>':'')}</div>`;
@@ -407,6 +412,7 @@ async function init(){
   try{B.custom=(await (await fetch('data/custom.json',{cache:'no-cache'})).json()).cards||[];}catch(e){B.custom=[];}
   try{RULES=await (await fetch('data/rules.json')).json();}catch(e){RULES={};}
   try{EXPL=await (await fetch('data/expl.json')).json();}catch(e){EXPL={};}
+  setupStockSearch(B, openDetail);
   for(const p of 'ABCD'){const v=B.cards.map(c=>c.ph[p]).filter(x=>x!=null), m=v.reduce((a,b)=>a+b,0)/v.length; SD[p]=Math.max(3,Math.sqrt(v.reduce((a,b)=>a+(b-m)**2,0)/v.length));}
   order=[...B.cards].sort((a,b)=>a.col-b.col||(a.ns-b.ns)||b.q-a.q).map(c=>c.id);
   $('#sub').textContent=`Wyckoff-Akkumulationen · Scanner v5 · Testlauf · Daten bis ${dDE(B.asof)}`;
