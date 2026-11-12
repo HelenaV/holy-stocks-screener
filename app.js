@@ -302,7 +302,7 @@ function renderSide(D){
   if(!D.box){$('#side').innerHTML=referenceH(D.reference)+overview(D.ov)+verdictH(D.verdict)+customH(D.cst)+`<p class="note" style="margin:10px 0">Keine Zeichnung: ${esc(deTxt(D.status))}</p>`;return;}
   const P={A:'Phase A · Stopp des Abwärtstrends',B:'Phase B · Aufbau der Ursache',C:'Phase C · Spring / Test',D:'Phase D · Markup bis Konsolidierung'};
   let h=referenceH(D.reference)+overview(D.ov)+verdictH(D.verdict)+customH(D.cst)+(D.box?'':`<p class="note" style="margin:10px 0">Keine Zeichnung: ${esc(deTxt(D.status))}</p>`)+`<h3>Score</h3><div style="display:flex;align-items:center;gap:14px">${rose(D.phases,D.avg,130,{labels:true})}<div><div style="font-size:34px;font-weight:300;line-height:1">${nf(D.q)}</div>
-    <div class="note">v4: ${nf(D.q4)}</div><div style="margin-top:8px">Konfidenz <span style="letter-spacing:1px">${dots(D.conf)}</span></div></div></div>
+    <div style="margin-top:8px">Konfidenz <span style="letter-spacing:1px">${dots(D.conf)}</span></div></div></div>
     <div class="note" style="margin-top:6px">Blatt größer als der gestrichelte Ring = Phase besser als der Board-Durchschnitt.</div>
     <div class="flagline">${D.funnel.true?`<span class="chip on">${funnelIcon(10).replace(G.w,'#000')} echter Trichter</span>`:''}${D.spring?`<span class="chip">${esc(D.spring.status==='shakeout'?'Shakeout':D.spring.kind)}${D.spring.ok&&!D.spring.conf?'?':''}${D.spring.status==='shakeout'?' · Pflicht-Test fehlt oder ungültig':''}</span>`:(D.box?'<span class="chip">kein Spring · Abzug</span>':'')}</div>`;
   const rowH=(r,key)=>{
