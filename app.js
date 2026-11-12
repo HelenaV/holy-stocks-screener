@@ -30,7 +30,7 @@ const dots=(r,n=5)=>r==null?'':'●'.repeat(r)+'○'.repeat(n-r);
 function renderBoard(){
   const el=$('#pBoard'); el.innerHTML='';
   B.cols.forEach((name,ci)=>{
-    const cards=B.cards.filter(c=>c.col===ci).sort((a,b)=>(a.ns-b.ns)||b.q-a.q); // R-C-12
+    const cards=B.cards.filter(c=>c.col===ci); // Scanner-Reihenfolge nach vollständigem Score übernehmen.
     const col=document.createElement('section'); col.className='col';
     col.innerHTML=`<div class="colh"><div class="n">0${ci+1}</div><h2>${name}<small>${cards.length}</small></h2><p>${COLDESC[ci]}</p><div class="prog"><i style="left:${ci*25}%;width:25%"></i></div></div>`;
     cards.forEach((c,k)=>{
@@ -397,7 +397,7 @@ function renderLegend(){
   <div>Mittellinie</div><div>Dunkel gestrichelt: Achse der Spanne, alternativer enger Stopp. Der klassische Stopp steht nur im Handelsplan.</div>
   <div>Phasenleiste</div><div>Unten im Kurschart: A, B, C (hell), D früh, D spät (mittelgrau).</div></div>
   <h2>Unterfenster</h2><p>Volumen, Weis-Wellen (dieselben Wellen wie in der Bewertung: Volumen je Welle kumuliert, Richtungswechsel nach 1,5 × Median-ATR der Spanne Gegenbewegung, die Welle endet an ihrem Wendepunkt), Harmonie (log(Kerzenkörper/mittlerer Körper ÷ Volumen/Median), nur Körper ohne Dochte, ±3 begrenzt; positiv = Rutschen, negativ = Schieben; im Trend werden Gegenkerzen ausgeblendet), Wikipedia-Aufrufe (Wikimedia-API, Artikel in der Sprache des Emittenten, falls gefunden) und Markttrend (Heimatindex mit SMA 50/200). Alle teilen die Zeitachse; jedes Fenster hat eine Datumsachse, das Datum der Kerze unter dem Mauszeiger steht oben im Kurschart.</p>
-  <h2>Streudiagramm</h2><p>x = Fortschritt durch die Phasen (innerhalb einer Phase stetig geschätzt), y = Score v5. Rechts oben ist es am heißesten. Die Schwänze zeigen, wo die Aktie an den letzten zehn Freitagen stand (Scanner mit damals verfügbaren Daten neu gerechnet). Ring = echter Trichter. (Seit 02.11.2026: ein Spring ist nicht Pflicht, aber ohne gültigen Spring gibt es einen Abzug, und solche Karten stehen in ihrer Spalte immer unter allen Karten mit Spring.)</p>
+  <h2>Streudiagramm</h2><p>x = Fortschritt durch die Phasen (innerhalb einer Phase stetig geschätzt), y = Score v5. Rechts oben ist es am heißesten. Die Schwänze zeigen, wo die Aktie an den letzten zehn Freitagen stand (Scanner mit damals verfügbaren Daten neu gerechnet). Ring = echter Trichter. Ein Spring ist nicht Pflicht; ohne gültigen Spring gibt es keine Spring-Punkte. Innerhalb jeder Board-Spalte zählt der vollständige Score absteigend. Einen zusätzlichen Vorrang für Karten mit Spring gibt es nicht.</p>
   <h2>Daten</h2><p>Kurse bis ${dDE(B.asof)} (gemeinsamer Kursdaten-Ordner, Tagesbars). ${B.n_scanned} Strukturen bewertet, ${B.cards.length} auf dem Board. Erstellt ${dDE(B.built)}. Testlauf, keine Anlageberatung.</p>${(B.review||[]).length?`<p>Beurteilte Fälle, die gerade nicht auf dem Board stehen (nur Detailansicht): ${B.review.map(c=>`<a href="#s=${encodeURIComponent(c.id)}" data-rev="${c.id}" style="color:#bdbdbd">${c.sym} (${c.rej?'verworfen':nf(c.q)})</a>`).join(', ')}</p>`:''}<p>Charts: <a href="https://www.tradingview.com/lightweight-charts/" style="color:#bdbdbd">TradingView Lightweight Charts</a> (Apache 2.0).</p>`;
   $$('#pLegend [data-rev]').forEach(a=>a.onclick=e=>{e.preventDefault();openDetail(a.dataset.rev);});
 }
@@ -414,7 +414,7 @@ async function init(){
   try{EXPL=await (await fetch('data/expl.json')).json();}catch(e){EXPL={};}
   setupStockSearch(B, openDetail);
   for(const p of 'ABCD'){const v=B.cards.map(c=>c.ph[p]).filter(x=>x!=null), m=v.reduce((a,b)=>a+b,0)/v.length; SD[p]=Math.max(3,Math.sqrt(v.reduce((a,b)=>a+(b-m)**2,0)/v.length));}
-  order=[...B.cards].sort((a,b)=>a.col-b.col||(a.ns-b.ns)||b.q-a.q).map(c=>c.id);
+  order=B.cards.map(c=>c.id);
   $('#sub').textContent=`Wyckoff-Akkumulationen · Scanner v5 · Testlauf · Daten bis ${dDE(B.asof)}`;
   $('#tabBoard').onclick=()=>show('board'); $('#tabScatter').onclick=()=>show('scatter'); $('#tabLegend').onclick=()=>show('legend'); $('#tabTests').onclick=()=>show('tests'); $('#tabCustom').onclick=()=>show('custom');
   $('#tailToggle').onchange=renderScatter; $('#tipToggle').onchange=e=>{tips=e.target.checked; tip();};

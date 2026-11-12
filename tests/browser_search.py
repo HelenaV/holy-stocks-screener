@@ -1,5 +1,6 @@
 import json, os
 from pathlib import Path
+from urllib.parse import quote
 from playwright.sync_api import sync_playwright, expect
 
 base = os.environ.get("SITE_URL", "http://127.0.0.1:8765/").rstrip("/") + "/"
@@ -16,6 +17,21 @@ with sync_playwright() as playwright:
     page.goto(base)
     query = page.get_by_role("combobox", name="Aktie suchen")
     expect(query).to_be_enabled()
+    # Board und Navigation müssen die vom Scanner gelieferte Reihenfolge beibehalten.
+    board = page.request.get(base + "data/board.json").json()
+    expected_ids = [card["id"] for card in board["cards"]]
+    actual_ids = page.locator("#pBoard .card").evaluate_all("cards => cards.map(c => c.dataset.id)")
+    assert actual_ids == expected_ids
+    for column in range(len(board["cols"])):
+        scores = [card["q"] for card in board["cards"] if card["col"] == column]
+        assert scores == sorted(scores, reverse=True)
+    page.locator("#pBoard .card").first.click()
+    expect(page.locator("#detail")).to_be_visible()
+    page.locator("#dNext").click()
+    expect(page).to_have_url(base + "#s=" + quote(expected_ids[1], safe=""))
+    page.locator("#dPrev").click()
+    expect(page).to_have_url(base + "#s=" + quote(expected_ids[0], safe=""))
+    page.get_by_role("button", name="← Zurück").click()
     original = page.locator("#pBoard").inner_html()
     for value in ["Halma", "hlma", "HLMA.L", "LSE:HLMA", "halma plc"]:
         query.fill(value)
@@ -85,6 +101,7 @@ with sync_playwright() as playwright:
                     "name/ticker/aliases",
                     "deduplication",
                     "board unchanged",
+                    "score order and chart navigation",
                     "keyboard",
                     "click",
                     "clear",
