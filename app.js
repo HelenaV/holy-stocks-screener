@@ -2,21 +2,24 @@
 /* Holy Stocks Screener · Testlauf · Graustufen-Visualisierung (keine Farbcodierung) */
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const nf=(v,d=1)=>v==null?'–':v.toLocaleString('de-DE',{minimumFractionDigits:d,maximumFractionDigits:d});
+// Erreichte und mögliche Punkte kommen gemeinsam vom Scanner; q bleibt nur der interne Rangwert.
+const scoreText=c=>c.points==null||c.maxPoints==null?'–':`${nf(c.points)} / ${nf(c.maxPoints)}`;
+const phaseScoreText=(c,p)=>c.phaseMaxima?.[p]>0?`${nf(c.phasePoints[p])} / ${nf(c.phaseMaxima[p])}`:'–';
 const pf=p=>p==null?'–':(Math.abs(p)>=1000?p.toLocaleString('de-DE',{maximumFractionDigits:0}):p.toLocaleString('de-DE',{maximumSignificantDigits:4}));
 const dDE=s=>{const[y,m,d]=s.split('-');return `${d}.${m}.${y}`;};
 const G={w:'#f2f2f2',l:'#d0d0d0',m:'#9a9a9a',d:'#6a6a6a',x:'#3a3a3a',bg:'#0a0a0a'};
-const COLDESC=['Spanne steht, Tests an beiden Rändern, noch kein Spring.','Spring oder Test am unteren Rand, Kurs noch unter der Mittellinie.','Nach dem Spring auf dem Weg zum Creek, bis JAC/Ausbruch.','Ab BUEC/Backup: Fortsetzung nach oben oder seitwärts über dem Creek.'];
+const COLDESC=['Spanne steht, Tests an beiden Rändern, noch kein Spring.','Spring-Kandidat oder Test am unteren Rand; Bestätigung durch JAC steht aus.','Bestätigte Jump-Bewegung bis BUEC-Abschluss, höchstens zehn Kerzen nach JAC.','Nach BUEC-Abschluss, spätestens ab der elften Kerze nach JAC.'];
 let B=null, order=[], tips=false, RULES={}, EXPL={};
 
-/* ---------- glyph: Nightingale-Rose, 4 Blätter A B C D, Ring = Board-Durchschnitt ---------- */
-let SD={A:8,B:8,C:15,D:15};
+/* ---------- glyph: Nightingale-Rose, 5 Blätter A B C D E, Ring = Board-Durchschnitt ---------- */
+let SD={A:8,B:8,C:15,D:15,E:15};
 function rose(ph,avg,size=56,opt={}){
-  const c=size/2, R=size*0.25, max=size*0.49, P=['A','B','C','D'];
+  const c=size/2, R=size*0.25, max=size*0.49, P=['A','B','C','D','E'];
   let s=`<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-hidden="true">`;
   P.forEach((p,k)=>{
-    const v=ph[p], a0=-Math.PI/2+k*Math.PI/2+0.06, a1=a0+Math.PI/2-0.12;
+    const v=ph[p], a0=-Math.PI/2+k*2*Math.PI/P.length+0.06, a1=a0+2*Math.PI/P.length-0.12;
     if(v==null){const am=(a0+a1)/2;s+=`<circle cx="${c+R*0.5*Math.cos(am)}" cy="${c+R*0.5*Math.sin(am)}" r="${size*0.022}" fill="${G.d}"/>`;return;}
-    const z=(v-avg[p])/(SD[p]||10), r=Math.max(R*0.3,Math.min(max,R*(1+0.45*z)));
+    const z=(v-(avg[p]??v))/(SD[p]||10), r=Math.max(R*0.3,Math.min(max,R*(1+0.45*z)));
     s+=`<path d="M${c},${c} L${c+r*Math.cos(a0)},${c+r*Math.sin(a0)} A${r},${r} 0 0 1 ${c+r*Math.cos(a1)},${c+r*Math.sin(a1)} Z" fill="${G.w}" stroke="${G.bg}" stroke-width="${size>80?1.5:.8}"/>`;
     if(opt.labels){const am=(a0+a1)/2, rl=Math.max(r,R)+size*0.07;s+=`<text x="${c+rl*Math.cos(am)}" y="${c+rl*Math.sin(am)+4}" fill="${G.m}" font-size="11" text-anchor="middle">${p}</text>`;}
   });
@@ -37,9 +40,9 @@ function renderBoard(){
       const b=document.createElement('button'); b.className='card'; b.dataset.id=c.id;
       const fx=[]; if(c.ft) fx.push(`<span>${funnelIcon()} Trichter</span>`); if(c.sk) fx.push(`<span>${esc(c.sk)}</span>`);
       b.innerHTML=`<div class="hd"><span class="tk"><span class="rank">${k+1}</span>${c.sym.split(':')[1]||c.sym}</span><span class="nm">${esc(c.name)}</span></div>
-        <div class="gl">${rose(c.ph,B.avg,58)}<div class="sc">${nf(c.q)}</div></div><canvas></canvas><div class="fx">${fx.join('')}</div>`;
+        <div class="gl">${rose(c.ph,B.avg,58)}<div class="sc">${scoreText(c)}</div></div><canvas></canvas><div class="fx">${fx.join('')}</div>`;
       b.onclick=()=>openDetail(c.id);
-      b.onmousemove=e=>tip(e,`<b>${esc(c.sym)}</b> · ${esc(c.name)}<br>Score ${nf(c.q)} · A ${nf(c.ph.A,0)} · B ${nf(c.ph.B,0)} · C ${nf(c.ph.C,0)} · D ${nf(c.ph.D,0)}`);
+      b.onmousemove=e=>tip(e,`<b>${esc(c.sym)}</b> · ${esc(c.name)}<br>Punkte ${scoreText(c)} · A ${phaseScoreText(c,'A')} · B ${phaseScoreText(c,'B')} · C ${phaseScoreText(c,'C')} · D ${phaseScoreText(c,'D')} · E ${phaseScoreText(c,'E')}`);
       b.onmouseleave=()=>tip();
       col.appendChild(b);
     });
@@ -65,25 +68,25 @@ function mini(cv,m){
 /* ---------- Scatter ---------- */
 function renderScatter(){
   const el=$('#scatter'), W=1200, H=640, ml=56, mr=24, mt=40, mb=46, tails=$('#tailToggle').checked;
-  const all=B.cards.flatMap(c=>[c.q,...(tails?c.hist.filter(h=>h.x!=null).map(h=>h.q):[])]);
-  const y0=Math.floor(Math.min(...all)/5)*5, y1=Math.ceil(Math.max(...all)/5)*5;
+  const all=B.cards.flatMap(c=>[c.points,...(tails?c.hist.filter(h=>h.x!=null&&h.points!=null).map(h=>h.points):[])]);
+  const y0=Math.floor(Math.min(...all)/5)*5, y1=Math.max(y0+5,Math.ceil(Math.max(...all)/5)*5);
   const X=x=>ml+x/4*(W-ml-mr), Y=q=>mt+(y1-q)/(y1-y0)*(H-mt-mb);
-  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Streudiagramm Fortschritt gegen Score">`;
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Streudiagramm Fortschritt gegen erreichte Punkte">`;
   B.cols.forEach((n,i)=>{ if(i%2) s+=`<rect x="${X(i)}" y="${mt}" width="${X(1)-X(0)}" height="${H-mt-mb}" fill="#101010"/>`;
     s+=`<text x="${X(i+.5)}" y="${mt-14}" fill="${G.m}" font-size="12" text-anchor="middle" letter-spacing=".08em">${n.toUpperCase()}</text>`;});
   for(let q=y0;q<=y1;q+=5){s+=`<line x1="${ml}" x2="${W-mr}" y1="${Y(q)}" y2="${Y(q)}" stroke="#1c1c1c"/><text x="${ml-10}" y="${Y(q)+4}" fill="${G.d}" font-size="11" text-anchor="end">${q}</text>`;}
-  const qm=B.cards.reduce((a,c)=>a+c.q,0)/B.cards.length;
+  const qm=B.cards.reduce((a,c)=>a+c.points,0)/B.cards.length;
   s+=`<line x1="${X(2)}" x2="${X(2)}" y1="${mt}" y2="${H-mb}" stroke="${G.x}" stroke-dasharray="3 4"/><line x1="${ml}" x2="${W-mr}" y1="${Y(qm)}" y2="${Y(qm)}" stroke="${G.x}" stroke-dasharray="3 4"/>`;
   s+=`<text x="${W-mr-8}" y="${mt+18}" fill="${G.d}" font-size="12" text-anchor="end" letter-spacing=".22em">HEISS</text><text x="${W-mr-8}" y="${mt+33}" fill="${G.x}" font-size="10.5" text-anchor="end">reif und sauber</text>`;
-  s+=`<text x="${ml}" y="${H-12}" fill="${G.m}" font-size="11">Fortschritt durch die Phasen →</text><text x="${W-mr}" y="${H-12}" fill="${G.d}" font-size="11" text-anchor="end">gestrichelt: Mitte der Phasen · Ø Score ${nf(qm)}</text>`;
-  s+=`<text transform="translate(16 ${mt+(H-mt-mb)/2}) rotate(-90)" fill="${G.m}" font-size="11" text-anchor="middle">Score v5</text>`;
+  s+=`<text x="${ml}" y="${H-12}" fill="${G.m}" font-size="11">Fortschritt durch die Phasen →</text><text x="${W-mr}" y="${H-12}" fill="${G.d}" font-size="11" text-anchor="end">gestrichelt: Mitte der Phasen · Ø Punkte ${nf(qm)}</text>`;
+  s+=`<text transform="translate(16 ${mt+(H-mt-mb)/2}) rotate(-90)" fill="${G.m}" font-size="11" text-anchor="middle">Erreichte Punkte</text>`;
   const G1=[],G2=[],G3=[];
   B.cards.forEach(c=>{
-    if(tails){const pts=[...c.hist.map(h=>h.x==null?null:[X(h.x),Y(h.q),h.d]),[X(c.x),Y(c.q),'heute']];
+    if(tails){const pts=[...c.hist.map(h=>h.x==null||h.points==null?null:[X(h.x),Y(h.points),h.d]),[X(c.x),Y(c.points),'heute']];
       let segs=[],cur=[]; pts.forEach(p=>{if(p==null){if(cur.length)segs.push(cur);cur=[];}else cur.push(p);}); if(cur.length)segs.push(cur);
       G1.push(`<g class="tail" data-id="${c.id}">`+segs.map(sg=>`<polyline points="${sg.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ')}" fill="none" stroke="#2b2b2b" stroke-width="1" stroke-linejoin="round"/>`).join('')
         +pts.filter(p=>p&&p[2]!=='heute').map(p=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="1.6" fill="#333"/>`).join('')+'</g>');}
-    const x=X(c.x), y=Y(c.q);
+    const x=X(c.x), y=Y(c.points);
     G2.push(`<g class="pt" data-id="${c.id}"><circle cx="${x}" cy="${y}" r="9" fill="transparent"/>${c.ft?`<circle cx="${x}" cy="${y}" r="8" fill="none" stroke="${G.m}" stroke-width="1"/>`:''}<circle class="dot" cx="${x}" cy="${y}" r="4.6" fill="${G.w}" stroke="${G.w}" stroke-width="1.4"/></g>`);
     G3.push(`<text class="lab" data-id="${c.id}" x="${x+8}" y="${y-7}" fill="${G.d}" font-size="10.5">${esc(c.sym.split(':')[1]||c.sym)}</text>`);
   });
@@ -94,7 +97,7 @@ function renderScatter(){
     el.querySelectorAll('.tail').forEach(t=>t.style.opacity=on&&t.dataset.id!==id?.25:1);};
   el.querySelectorAll('.pt').forEach(p=>{const id=p.dataset.id, c=B.cards.find(z=>z.id===id);
     p.onmouseenter=()=>hl(id,true); p.onmouseleave=()=>{hl(id,false);tip();};
-    p.onmousemove=e=>tip(e,`<b>${esc(c.sym)}</b> · ${esc(c.name)}<br>${B.cols[c.col]} · Score ${nf(c.q)}<br>Verlauf: ${c.hist.filter(h=>h.q!=null).map(h=>nf(h.q,0)).join(' → ')}`);
+    p.onmousemove=e=>tip(e,`<b>${esc(c.sym)}</b> · ${esc(c.name)}<br>${B.cols[c.col]} · Punkte ${scoreText(c)}<br>Verlauf: ${c.hist.filter(h=>h.points!=null).map(h=>scoreText(h)).join(' → ')}`);
     p.onclick=()=>openDetail(id);});
   $('#scNote').textContent=tails?`Schwänze: Scanner v5 mit Daten bis zu den Freitagen ${dDE(B.fridays[0])} … ${dDE(B.fridays[B.fridays.length-1])}, Lücke = damals nicht auf dem Board (Phase A/früh B oder keine Struktur).`:'';
 }
@@ -125,7 +128,7 @@ class WyOverlay{
     // R-S-15 (Evelyn 2026-11-02 11:11): adjacent phases alternate dark / light gray, small gap between segments
     D.spans.forEach((sp,k)=>{const x0=X(sp.i0), x1=X(sp.i1); if(x0==null||x1==null)return;
       ctx.fillStyle=k%2?'#c8c8c8':'#5a5a5a'; ctx.fillRect(x0-bs+2,yb-1,Math.max(2,x1-x0+2*bs-4),5);
-      const lab={A:'A',B:'B',C:'C',D:'D früh','D+':'D spät'}[sp.ph]; if(x1-x0>14) txt(lab,(x0+x1)/2,yb-4,G.l,'center',600,10.5);
+      const lab={A:'A',B:'B',C:'C',D:'D',E:'E'}[sp.ph]; if(x1-x0>14) txt(lab,(x0+x1)/2,yb-4,G.l,'center',600,10.5);
     });
     if(xa!=null){
       // R-S-15 (Evelyn 2026-11-02 11:14): creek and range low = identical calm solid lines to the right edge; midline darker,
@@ -195,7 +198,7 @@ async function openDetail(id){
   const D=await (await fetch('data/s/'+c.f)).json(); if(curId!==id)return;
   charts.forEach(ch=>ch.remove()); charts=[];
   $('#dSym').textContent=D.sym; $('#dName').textContent=D.name;
-  $('#dMeta').innerHTML=`${D.reference?'<span>Prüfstand '+dDE(D.reference.date)+'</span>':''}<span>${isTest(id)?(isCustom(id)?'Custom · '+esc(CGRP[(D.cst||{}).gruppe]||deTxt((D.cst||{}).gruppe)||'')+' · ':'Test-Stock · ')+esc(D.colName)+(c.rej?' · '+esc(deTxt(c.rej)):''):D.colName+(B.cards.some(z=>z.id===id)?'':(c.rej?' · nicht auf dem Board – '+esc(deTxt(c.rej)):' · nicht auf dem Board (beurteilter Fall)'))}</span><span>Daten bis ${dDE(D.asof)}</span><span class="big">${nf(D.q)}</span>`;
+  $('#dMeta').innerHTML=`${D.reference?'<span>Prüfstand '+dDE(D.reference.date)+'</span>':''}<span>${isTest(id)?(isCustom(id)?'Custom · '+esc(CGRP[(D.cst||{}).gruppe]||deTxt((D.cst||{}).gruppe)||'')+' · ':'Test-Stock · ')+esc(D.colName)+(c.rej?' · '+esc(deTxt(c.rej)):''):D.colName+(B.cards.some(z=>z.id===id)?'':(c.rej?' · nicht auf dem Board – '+esc(deTxt(c.rej)):' · nicht auf dem Board (beurteilter Fall)'))}</span><span>Daten bis ${dDE(D.asof)}</span><span class="big">${scoreText(D)}</span>`;
   const LW=window.LightweightCharts, T=D.t, n=T.length;
   const mk=(k,dateLabel=false,extra={})=>{const ch=LW.createChart($('#c'+k),Object.assign(baseOpts(dateLabel),extra)); charts.push(ch); return ch;};
   // Kurs
@@ -300,11 +303,11 @@ function infoize(){$$('.plab').forEach(pl=>{const sm=pl.querySelector(':scope > 
 document.addEventListener('click',()=>$$('.plab .pi.open').forEach(x=>x.classList.remove('open')));
 function renderSide(D){
   if(!D.box){$('#side').innerHTML=referenceH(D.reference)+overview(D.ov)+verdictH(D.verdict)+customH(D.cst)+`<p class="note" style="margin:10px 0">Keine Zeichnung: ${esc(deTxt(D.status))}</p>`;return;}
-  const P={A:'Phase A · Stopp des Abwärtstrends',B:'Phase B · Aufbau der Ursache',C:'Phase C · Spring / Test',D:'Phase D · Markup bis Konsolidierung'};
-  let h=referenceH(D.reference)+overview(D.ov)+verdictH(D.verdict)+customH(D.cst)+(D.box?'':`<p class="note" style="margin:10px 0">Keine Zeichnung: ${esc(deTxt(D.status))}</p>`)+`<h3>Score</h3><div style="display:flex;align-items:center;gap:14px">${rose(D.phases,D.avg,130,{labels:true})}<div><div style="font-size:34px;font-weight:300;line-height:1">${nf(D.q)}</div>
+  const P={A:'Phase A · Stopp des Abwärtstrends',B:'Phase B · Aufbau der Ursache',C:'Phase C · Spring / Test',D:'Phase D · Jump-Bewegung',E:'Phase E · Nach BUEC oder ab JAC + 11'};
+  let h=referenceH(D.reference)+overview(D.ov)+verdictH(D.verdict)+customH(D.cst)+(D.box?'':`<p class="note" style="margin:10px 0">Keine Zeichnung: ${esc(deTxt(D.status))}</p>`)+`<h3>Punkte · erreicht / möglich</h3><div style="display:flex;align-items:center;gap:14px">${rose(D.phases,D.avg,130,{labels:true})}<div><div style="font-size:34px;font-weight:300;line-height:1">${scoreText(D)}</div>
     <div style="margin-top:8px">Konfidenz <span style="letter-spacing:1px">${dots(D.conf)}</span></div></div></div>
     <div class="note" style="margin-top:6px">Blatt größer als der gestrichelte Ring = Phase besser als der Board-Durchschnitt.</div>
-    <div class="flagline">${D.funnel.true?`<span class="chip on">${funnelIcon(10).replace(G.w,'#000')} echter Trichter</span>`:''}${D.spring?`<span class="chip">${esc(D.spring.status==='shakeout'?'Shakeout':D.spring.kind)}${D.spring.ok&&!D.spring.conf?'?':''}${D.spring.status==='shakeout'?' · Pflicht-Test fehlt oder ungültig':''}</span>`:(D.box?'<span class="chip">kein Spring · Abzug</span>':'')}</div>`;
+    <div class="flagline">${D.funnel.true?`<span class="chip on">${funnelIcon(10).replace(G.w,'#000')} echter Trichter</span>`:''}${D.spring?`<span class="chip">${esc(D.spring.status==='shakeout'?'Shakeout':D.spring.kind)}${D.spring.ok&&!D.spring.conf?'?':''}${D.spring.status==='shakeout'?' · Pflicht-Test fehlt oder ungültig':''}</span>`:(D.box?'<span class="chip">kein Spring</span>':'')}</div>`;
   const rowH=(r,key)=>{
     const ex=Array.isArray(EXPL[r.k])?EXPL[r.k]:null;
     const ru=(r.id&&RULES[r.id])||(ex&&ex[2]&&RULES[ex[2]])||null;
@@ -322,18 +325,18 @@ function renderSide(D){
     return `<div class="row"><span>${esc(r.k)}${btn}</span><span class="bar"><i style="width:${100*r.p/r.m}%"></i></span><em>${nf(r.p,1)}/${r.m}</em></div>`
       +(r.n?`<div class="rnote">${esc(r.n)}</div>`:'')+info;
   };
-  const sec=(p,title,sub)=>{const rows=D.bd[p]||[]; let x=`<div class="ph"><div class="phh"><b>${title}</b><span>${D.phases[p]==null?'–':nf(D.phases[p],0)} <small class="note">Ø ${nf(D.avg[p],0)}</small></span></div>`;
+  const sec=(p,title,sub)=>{const rows=D.bd[p]||[]; let x=`<div class="ph"><div class="phh"><b>${title}</b><span>${phaseScoreText(D,p)}</span></div>`;
     if(sub) x+=`<div class="note" style="margin-bottom:4px">${sub}</div>`;
     if(!rows.length) x+='<div class="note">nicht anwendbar</div>'; rows.forEach((r,i)=>{x+=rowH(r,p+'-'+i);}); return x+'</div>';};
   h+='<h3>Gesamt-Akkumulation</h3>'+sec('G','Phasenübergreifend','gilt für die ganze Akkumulation, nicht Teil der Rose');
   h+='<h3>Bewertung je Phase</h3>';
-  for(const p of 'ABCD') h+=sec(p,P[p]);
+  for(const p of 'ABCDE') h+=sec(p,P[p]);
   if(D.spring){
     const s=D.spring;
     const description=s.explanation||s.kind;
     h+=`<h3>Spring / Shakeout</h3><p>${esc(description)}</p><dl class="kv">
       <dt>Deutung</dt><dd>${esc(s.status==='shakeout'?'Shakeout (Typ-1-Kandidat ohne gültigen Test)':s.kind)}${s.ok&&!s.conf?' (möglich, noch kein JAC)':''}</dd>
-      <dt>Spring-Punkteanteil</dt><dd>${nf(100*s.q,0)} %</dd>
+      <dt>Spring-Punkte</dt><dd>${scoreText(s)}</dd>
       <dt>Volumen der Event-Kerzen</dt><dd>${nf(s.vr,2)} × ${s.status?'vorheriger Durchschnitt':'Median (gespeicherter Stand)'}</dd>
       <dt>Stich unter die Spanne</dt><dd>${nf(s.da,2)} ATR · ${nf(100*s.pen,1)} % der Range-Höhe</dd>
       <dt>Test</dt><dd>${s.nt?(s.ht?'Pflicht-Test gültig':'Pflicht-Test fehlt oder ungültig'):s.ok?'kein Pflicht-Test':'Typ noch ungeklärt'}</dd>
@@ -368,7 +371,7 @@ function renderCustom(){
       const st=c.miss?(c.f?'keine Struktur':esc(deTxt(c.miss))):(c.rej?'verworfen':'Struktur');
       const r=V.result_r!=null?` · ${V.result_r>0?'+':''}${nf(V.result_r,1)} R`:'';
       b.innerHTML=`<div class="hd"><span class="tk"><span class="rank">${k+1}</span>${esc(c.sym)}</span><span class="nm">${esc(c.name&&c.name!==c.sym?c.name:'')}</span>${V.notiz?`<span class="nm nt">${esc(V.notiz)}</span>`:''}</div>
-        <div class="gl">${c.ph?rose(c.ph,B.avg,58):''}<div class="sc">${c.q==null?'–':nf(c.q)}</div></div><canvas></canvas>
+        <div class="gl">${c.ph?rose(c.ph,B.avg,58):''}<div class="sc">${scoreText(c)}</div></div><canvas></canvas>
         <div class="fx"><span>${esc(st)}</span><span>${V.pct==null?'–':(V.pct>0?'+':'')+nf(V.pct,1)+' %'}${r}</span></div>`;
       b.onclick=()=>openDetail(c.id);
       b.onmousemove=e=>tip(e,`<b>${esc(c.sym)}</b> · ${esc(c.name)}${V.notiz?' · '+esc(V.notiz):''}<br>${esc(deTxt(V.scanner_now||c.miss||''))}`); b.onmouseleave=()=>tip();
@@ -380,14 +383,14 @@ function renderTests(){
   const T=B.tests||[];
   $('#pTests').innerHTML=`<h2>Test-Stocks <small>${T.length} von Evelyn beurteilte Aktien</small></h2><p class="note">Scanner v5 (heutige Regeln) auf Kursen bis ${(()=>{const l=T.map(c=>c.last).filter(Boolean).sort().pop();return l?dDE(l):'–';})()}; alle Ereignisse, Spanne, Creek und Phasen eingezeichnet. Ohne erkannte Struktur: nur Chart mit Grund. Pfeil im Chart = Urteilsdatum. Kursänderung vom Schluss am Urteilstag bis zum letzten Bar.</p>
   <div class="tlist">${T.map(c=>{const V=c.v||{};return `<button class="trow" data-t="${esc(c.id)}"${c.f?'':' disabled'}><b>${esc(c.sym)}</b><span class="nm">${esc(c.name)}</span>
-   <span><small>Evelyn ${V.date?dDE(V.date):''}</small>${esc(V.evelyn||'–')}</span><span><small>Scanner heute</small>${esc(c.miss?'keine Struktur':(c.rej?'verworfen':'Struktur, Score '+nf(c.q)))}</span>
+   <span><small>Evelyn ${V.date?dDE(V.date):''}</small>${esc(V.evelyn||'–')}</span><span><small>Scanner heute</small>${esc(c.miss?'keine Struktur':(c.rej?'verworfen':'Struktur, Punkte '+scoreText(c)))}</span>
    <span class="pc">${V.pct==null?'–':(V.pct>0?'+':'')+nf(V.pct,1)+' %'}</span></button>`;}).join('')}</div>`;
   $$('#pTests [data-t]').forEach(b=>b.onclick=()=>openDetail(b.dataset.t));
 }
 function renderLegend(){
   const ex={A:95,B:60,C:null,D:85};
-  $('#pLegend').innerHTML=`<h2>Board</h2><p>Vier Spalten, von links nach rechts reift die Struktur. Je Spalte höchstens zehn Aktien, höchster Score oben; Karten ohne gültigen Spring stehen immer unter allen mit Spring. Phase A und frühe Phase B erscheinen nicht (noch Geister).</p>
-  <h2>Glyphe</h2><div class="lg"><div>${rose(ex,{A:88,B:72,C:60,D:80},110,{labels:true})}</div><div>Nightingale-Rose mit vier Blättern: A oben rechts, dann im Uhrzeigersinn B, C, D (D schließt die Konsolidierung ein). Der graue Ring ist der Durchschnitt aller Board-Aktien in der jeweiligen Phase. Ein Blatt reicht über den Ring hinaus, wenn die Phase besser als der Durchschnitt ist, und bleibt innen, wenn sie schwächer ist. Radius = Ring × (1 + 0,45 × Abstand zum Durchschnitt in Standardabweichungen des Boards), damit kleine Unterschiede sichtbar werden. Ein Punkt statt eines Blatts heißt: Phase nicht anwendbar (z. B. kein Spring oder weder JAC noch Konsolidierung). Die Zahl darunter ist der Gesamtscore (0–100). Er enthält auch die phasenübergreifenden Punkte der Gesamt-Akkumulation (Spannenhöhe, -breite, relative Ruhe, Abwärtstrend davor …); diese stehen im Detail in einem eigenen Abschnitt und sind kein Blatt der Rose. Das ⓘ neben jedem Punkt erklärt zuerst, was er bedeutet und wie er berechnet wird; darunter folgen die Details der Regel und zuletzt, wann und von wem sie festgelegt wurde.</div>
+  $('#pLegend').innerHTML=`<h2>Board</h2><p>Vier Spalten, von links nach rechts reift die Struktur. Je Spalte höchstens zehn Aktien, höchster Erfüllungsgrad des aktiven Punktebudgets oben. Phase A und frühe Phase B erscheinen nicht (noch Geister).</p>
+  <h2>Glyphe</h2><div class="lg"><div>${rose(ex,{A:88,B:72,C:60,D:80},110,{labels:true})}</div><div>Nightingale-Rose mit fünf Blättern für A, B, C, D und E. Phase D umfasst die bestätigte Jump-Bewegung und den BUEC. Phase E beginnt am BUEC-Abschluss, spätestens an der elften Kerze nach dem JAC; ein BUEC ist optional. Der graue Ring ist der Durchschnitt aller Board-Aktien in der jeweiligen Phase. Ein Blatt reicht über den Ring hinaus, wenn die Phase besser als der Durchschnitt ist, und bleibt innen, wenn sie schwächer ist. Radius = Ring × (1 + 0,45 × Abstand zum Durchschnitt in Standardabweichungen des Boards), damit kleine Unterschiede sichtbar werden. Ein Punkt statt eines Blatts heißt: Phase nicht anwendbar (z. B. kein Spring oder weder JAC noch Konsolidierung). Die Zahlen darunter zeigen erreichte / mögliche Punkte. Das verfügbare Budget wächst mit der Reife; technische Datenlücken werden davon ausgenommen. Die Summe enthält auch die phasenübergreifenden Punkte der Gesamt-Akkumulation (Spannenhöhe, -breite, relative Ruhe, Abwärtstrend davor …); diese stehen im Detail in einem eigenen Abschnitt und sind kein Blatt der Rose. Das ⓘ neben jedem Punkt erklärt zuerst, was er bedeutet und wie er berechnet wird; darunter folgen die Details der Regel und zuletzt, wann und von wem sie festgelegt wurde.</div>
   <div>${funnelIcon(16)}</div><div>Echter Trichter: Die Wellen in der Spanne werden von Welle zu Welle kleiner, obere Kante fällt, untere steigt (nach Francis Hunt).</div>
   <div style="font-size:15px;color:#f2f2f2">SC ●●●○○</div><div>Ereignis im Chart mit Bewertung 0–5 Punkten.</div>
   <div><span style="background:#f2f2f2;color:#000;padding:1px 6px;border-radius:3px;font-weight:600">AR ●●●●●</span></div><div>Top-Ereignis (volle Punktzahl): weiß hinterlegt.</div>
@@ -395,10 +398,10 @@ function renderLegend(){
   <h2>Kerzen und Linien</h2><div class="lg"><div>Kerzen</div><div>Hohl mit weißem Rand = steigend, grau gefüllt = fallend.</div>
   <div>Creek / Spannentief</div><div>Zwei gleiche durchgezogene graue Linien bis zum rechten Rand: oben die Oberkante der Spanne (AR-Hoch), unten das Spannentief (SC). Ohne Beschriftung.</div>
   <div>Mittellinie</div><div>Dunkel gestrichelt: Achse der Spanne, alternativer enger Stopp. Der klassische Stopp steht nur im Handelsplan.</div>
-  <div>Phasenleiste</div><div>Unten im Kurschart: A, B, C (hell), D früh, D spät (mittelgrau).</div></div>
+  <div>Phasenleiste</div><div>Unten im Kurschart: A, B, C, D (Jump-Bewegung) und E (nach BUEC oder ab JAC + 11).</div></div>
   <h2>Unterfenster</h2><p>Volumen, Weis-Wellen (dieselben Wellen wie in der Bewertung: Volumen je Welle kumuliert, Richtungswechsel nach 1,5 × Median-ATR der Spanne Gegenbewegung, die Welle endet an ihrem Wendepunkt), Harmonie (log(Kerzenkörper/mittlerer Körper ÷ Volumen/Median), nur Körper ohne Dochte, ±3 begrenzt; positiv = Rutschen, negativ = Schieben; im Trend werden Gegenkerzen ausgeblendet), Wikipedia-Aufrufe (Wikimedia-API, Artikel in der Sprache des Emittenten, falls gefunden) und Markttrend (Heimatindex mit SMA 50/200). Alle teilen die Zeitachse; jedes Fenster hat eine Datumsachse, das Datum der Kerze unter dem Mauszeiger steht oben im Kurschart.</p>
-  <h2>Streudiagramm</h2><p>x = Fortschritt durch die Phasen (innerhalb einer Phase stetig geschätzt), y = Score v5. Rechts oben ist es am heißesten. Die Schwänze zeigen, wo die Aktie an den letzten zehn Freitagen stand (Scanner mit damals verfügbaren Daten neu gerechnet). Ring = echter Trichter. Ein Spring ist nicht Pflicht; ohne gültigen Spring gibt es keine Spring-Punkte. Innerhalb jeder Board-Spalte zählt der vollständige Score absteigend. Einen zusätzlichen Vorrang für Karten mit Spring gibt es nicht.</p>
-  <h2>Daten</h2><p>Kurse bis ${dDE(B.asof)} (gemeinsamer Kursdaten-Ordner, Tagesbars). ${B.n_scanned} Strukturen bewertet, ${B.cards.length} auf dem Board. Erstellt ${dDE(B.built)}. Testlauf, keine Anlageberatung.</p>${(B.review||[]).length?`<p>Beurteilte Fälle, die gerade nicht auf dem Board stehen (nur Detailansicht): ${B.review.map(c=>`<a href="#s=${encodeURIComponent(c.id)}" data-rev="${c.id}" style="color:#bdbdbd">${c.sym} (${c.rej?'verworfen':nf(c.q)})</a>`).join(', ')}</p>`:''}<p>Charts: <a href="https://www.tradingview.com/lightweight-charts/" style="color:#bdbdbd">TradingView Lightweight Charts</a> (Apache 2.0).</p>`;
+  <h2>Streudiagramm</h2><p>x = Fortschritt durch die Phasen (innerhalb einer Phase stetig geschätzt), y = Erreichte Punkte. Rechts oben ist es am heißesten. Die Schwänze zeigen, wo die Aktie an den letzten zehn Freitagen stand (Scanner mit damals verfügbaren Daten neu gerechnet). Ring = echter Trichter. Ein Spring ist nicht Pflicht; ohne gültigen Spring gibt es keine Spring-Punkte. Innerhalb jeder Board-Spalte zählt das Verhältnis erreichter zu möglichen Punkten absteigend; die Anzeige zeigt beide absoluten Werte. Einen zusätzlichen Vorrang für Karten mit Spring gibt es nicht.</p>
+  <h2>Daten</h2><p>Kurse bis ${dDE(B.asof)} (gemeinsamer Kursdaten-Ordner, Tagesbars). ${B.n_scanned} Strukturen bewertet, ${B.cards.length} auf dem Board. Erstellt ${dDE(B.built)}. Testlauf, keine Anlageberatung.</p>${(B.review||[]).length?`<p>Beurteilte Fälle, die gerade nicht auf dem Board stehen (nur Detailansicht): ${B.review.map(c=>`<a href="#s=${encodeURIComponent(c.id)}" data-rev="${c.id}" style="color:#bdbdbd">${c.sym} (${c.rej?'verworfen':scoreText(c)})</a>`).join(', ')}</p>`:''}<p>Charts: <a href="https://www.tradingview.com/lightweight-charts/" style="color:#bdbdbd">TradingView Lightweight Charts</a> (Apache 2.0).</p>`;
   $$('#pLegend [data-rev]').forEach(a=>a.onclick=e=>{e.preventDefault();openDetail(a.dataset.rev);});
 }
 
@@ -413,7 +416,7 @@ async function init(){
   try{RULES=await (await fetch('data/rules.json')).json();}catch(e){RULES={};}
   try{EXPL=await (await fetch('data/expl.json')).json();}catch(e){EXPL={};}
   setupStockSearch(B, openDetail);
-  for(const p of 'ABCD'){const v=B.cards.map(c=>c.ph[p]).filter(x=>x!=null), m=v.reduce((a,b)=>a+b,0)/v.length; SD[p]=Math.max(3,Math.sqrt(v.reduce((a,b)=>a+(b-m)**2,0)/v.length));}
+  for(const p of 'ABCDE'){const v=B.cards.map(c=>c.ph[p]).filter(x=>x!=null), m=v.reduce((a,b)=>a+b,0)/v.length; SD[p]=v.length?Math.max(3,Math.sqrt(v.reduce((a,b)=>a+(b-m)**2,0)/v.length)):8;}
   order=B.cards.map(c=>c.id);
   $('#sub').textContent=`Wyckoff-Akkumulationen · Scanner v5 · Testlauf · Daten bis ${dDE(B.asof)}`;
   $('#tabBoard').onclick=()=>show('board'); $('#tabScatter').onclick=()=>show('scatter'); $('#tabLegend').onclick=()=>show('legend'); $('#tabTests').onclick=()=>show('tests'); $('#tabCustom').onclick=()=>show('custom');
