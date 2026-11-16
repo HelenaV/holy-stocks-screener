@@ -12,8 +12,7 @@ function setupStockSearch(board, openChart) {
   for (const [key, label] of [['cards', 'Board'], ['review', 'Review'], ['tests', 'Test-Stocks'], ['custom', 'Custom'], ['feedback', 'Feedback']]) {
     for (const card of (key === 'feedback' ? board.feedback?.cases : board[key]) || []) {
       if (!card.f) continue; // Ohne Detaildatei kann die Suche keinen Chart öffnen.
-      const identity = String(card.id);
-      const ticker = card.yahooSymbol || (identity.startsWith('r:') ? identity.split(':')[1] : identity.replace(/^[tc]:/, ''));
+      const ticker = card.yahooSymbol || String(card.id).replace(/^[tc]:/, '');
       let entry = entries.get(ticker);
       if (!entry) {
         entry = {id: card.id, ticker, name: card.name || card.sym || ticker, symbol: card.sym || ticker, referenceDate: card.reference_date, labels: [], aliases: new Set()};
