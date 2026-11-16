@@ -11,3 +11,10 @@ Prüft Namen/Kürzel, zusammengefasste Mehrfacheinträge, alle vier Datenquellen
 Tastaturbedienung, leere Treffer, Löschen, unverändertes Board, mobile Suche und
 Öffnen des Halma-Charts. Halma ist dafür ein bewusst gewählter Review-Fall.
 Die Prüfung ist kein fachliches Urteil über die erkannte Akkumulation.
+
+`python tests/browser_feedback.py` prüft den Feedbackabschnitt: alle historischen
+Prüfcharts, Referenzlinien trotz Ablehnung, Direktlinks und Navigation, lokale
+Antwortentwürfe nach Neuladen, Kopieren und mobile Darstellung. Standard-URL ist
+`http://127.0.0.1:8774/`; `SITE_URL` kann auf die Live-Website zeigen. Die Prüfung
+schreibt nur Testentwürfe in ihren isolierten Browserkontext und überträgt keine
+Antworten an einen Server.

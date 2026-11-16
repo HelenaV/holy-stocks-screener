@@ -8,7 +8,7 @@ const phaseScoreText=(c,p)=>c.phaseMaxima?.[p]>0?`${nf(c.phasePoints[p])} / ${nf
 const pf=p=>p==null?'–':(Math.abs(p)>=1000?p.toLocaleString('de-DE',{maximumFractionDigits:0}):p.toLocaleString('de-DE',{maximumSignificantDigits:4}));
 const dDE=s=>{const[y,m,d]=s.split('-');return `${d}.${m}.${y}`;};
 const G={w:'#f2f2f2',l:'#d0d0d0',m:'#9a9a9a',d:'#6a6a6a',x:'#3a3a3a',bg:'#0a0a0a'};
-const COLDESC=['Spanne steht, Tests an beiden Rändern, noch kein Spring.','Spring-Kandidat oder Test am unteren Rand; Bestätigung durch JAC steht aus.','Bestätigte Jump-Bewegung bis BUEC-Abschluss, höchstens zehn Kerzen nach JAC.','Nach BUEC-Abschluss, spätestens ab der elften Kerze nach JAC.'];
+const COLDESC=['Spanne steht, Tests an beiden Rändern, noch kein Spring.','Spring-Kandidat oder Test am unteren Rand; Bestätigung durch JAC steht aus.','Bestätigte Jump-Bewegung bis BUEC-Abschluss, bis zum relativen Zeitlimit nach JAC.','Nach BUEC-Abschluss, spätestens am relativen Zeitlimit nach JAC.'];
 let B=null, order=[], tips=false, RULES={}, EXPL={};
 
 /* ---------- glyph: Nightingale-Rose, 5 Blätter A B C D E, Ring = Board-Durchschnitt ---------- */
@@ -123,6 +123,21 @@ class WyOverlay{
       // (2026-11-02 11:11, Evelyn) no phase lines/letters in the price panel - only the phase bar at the bottom
       return;
     }
+    const ref=D.hideReviewOverlay?null:D.reviewOverlay;
+    if(ref){
+      const colour='#bdbdbd', x0=ref.i0==null?0:X(ref.i0), x1=X(ref.i1);
+      if(x0!=null&&x1!=null){
+        if(ref.lo!=null)line(x0,W,Y(ref.lo),colour,[6,5],1.2);
+        if(ref.hi!=null)line(x0,W,Y(ref.hi),colour,[6,5],1.2);
+        if(ref.i0!=null && ref.lo!=null && ref.hi!=null){ctx.strokeStyle=colour;ctx.setLineDash([6,5]);ctx.beginPath();ctx.moveTo(x0,Y(ref.lo));ctx.lineTo(x0,Y(ref.hi));ctx.stroke();ctx.setLineDash([]);}
+      }
+      const slots=[-Infinity,-Infinity];
+      for(const event of ref.events){const x=X(event.i), y=Y(event.p);if(x==null||y==null||x<0||x>W)continue;
+        const lane=event.lo?1:0, text='Ref. '+(event.approximate?'≈ ':'')+event.k;
+        const lx=Math.max(x,slots[lane]+8),ly=event.lo?H-128:20;
+        txt(text,lx,ly,colour,'left',500,10);ctx.strokeStyle=colour;ctx.setLineDash([2,3]);ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(lx,ly+(event.lo?-12:4));ctx.stroke();ctx.setLineDash([]);slots[lane]=lx+ctx.measureText(text).width;
+      }
+    }
     // Phasenleiste unten
     const yb=H-14; let lastLx=null, lastLy=0;
     // R-S-15 (Evelyn 2026-11-02 11:11): adjacent phases alternate dark / light gray, small gap between segments
@@ -190,9 +205,12 @@ function baseOpts(dateLabel){return{autoSize:true,layout:{attributionLogo:false,
   localization:{locale:'de-DE',dateFormat:'dd.MM.yyyy'},handleScale:{axisPressedMouseMove:{time:true,price:true}}};}
 
 // R-S-12: judged charts (tests/cases) that are not on the board: detail page only (#s=<id>, linked in the legend)
-function cardOf(id){return B.cards.find(z=>z.id===id)||(B.review||[]).find(z=>z.id===id)||(B.tests||[]).find(z=>z.id===id&&z.f)||(B.custom||[]).find(z=>z.id===id&&z.f);}
-const isTest=id=>/^[tc]:/.test(String(id)), isCustom=id=>String(id).startsWith('c:');
+function cardOf(id){return B.cards.find(z=>z.id===id)||(B.review||[]).find(z=>z.id===id)||(B.tests||[]).find(z=>z.id===id&&z.f)||(B.custom||[]).find(z=>z.id===id&&z.f)||(B.feedback?.cases||[]).find(z=>z.id===id);}
+const isTest=id=>/^[tcf]:/.test(String(id)), isCustom=id=>String(id).startsWith('c:');
 async function openDetail(id){
+  if(String(id).startsWith('f:')&&cur!=='tests')show('tests');
+  $('#detail').classList.toggle('feedback-mode',String(id).startsWith('f:'));
+  $('#dFeedback').hidden=!String(id).startsWith('f:');
   curId=id; location.hash='s='+encodeURIComponent(id); $('#detail').hidden=false; document.body.style.overflow='hidden';
   const c=cardOf(id);
   const D=await (await fetch('data/s/'+c.f)).json(); if(curId!==id)return;
@@ -301,13 +319,23 @@ function infoize(){$$('.plab').forEach(pl=>{const sm=pl.querySelector(':scope > 
   sm.classList.add('pt'); sm.remove(); b.appendChild(sm); pl.appendChild(b);
   b.onclick=e=>{e.stopPropagation(); const o=b.classList.toggle('open'); $$('.plab .pi.open').forEach(x=>{if(x!==b)x.classList.remove('open');});};});}
 document.addEventListener('click',()=>$$('.plab .pi.open').forEach(x=>x.classList.remove('open')));
+function bindReviewOverlay(D){
+  const header=$('#pl0');
+  const old=header.querySelector('.reference-toggle');if(old)old.remove();
+  if(!D.reviewOverlay)return;
+  const label=document.createElement('label');label.className='reference-toggle';
+  const input=document.createElement('input');input.type='checkbox';input.checked=true;
+  label.append(input,document.createTextNode(' Referenz anzeigen (gestrichelt)'));
+  input.onchange=()=>{D.hideReviewOverlay=!input.checked;charts[0]?.applyOptions({});};
+  header.appendChild(label);
+}
 function renderSide(D){
-  if(!D.box){$('#side').innerHTML=referenceH(D.reference)+overview(D.ov)+verdictH(D.verdict)+customH(D.cst)+`<p class="note" style="margin:10px 0">Keine Zeichnung: ${esc(deTxt(D.status))}</p>`;return;}
-  const P={A:'Phase A · Stopp des Abwärtstrends',B:'Phase B · Aufbau der Ursache',C:'Phase C · Spring / Test',D:'Phase D · Jump-Bewegung',E:'Phase E · Nach BUEC oder ab JAC + 11'};
-  let h=referenceH(D.reference)+overview(D.ov)+verdictH(D.verdict)+customH(D.cst)+(D.box?'':`<p class="note" style="margin:10px 0">Keine Zeichnung: ${esc(deTxt(D.status))}</p>`)+`<h3>Punkte · erreicht / möglich</h3><div style="display:flex;align-items:center;gap:14px">${rose(D.phases,D.avg,130,{labels:true})}<div><div style="font-size:34px;font-weight:300;line-height:1">${scoreText(D)}</div>
+  if(!D.box){$('#side').innerHTML=window.HolyStocksFeedback.detail(D.feedback)+referenceH(D.reference)+overview(D.ov)+verdictH(D.verdict)+customH(D.cst)+`<p class="note" style="margin:10px 0">${D.feedback?'Keine gültige Scannerzeichnung':'Keine Zeichnung'}: ${esc(deTxt(D.status))}</p>`;window.HolyStocksFeedback.bind($('#side'),openDetail);bindReviewOverlay(D);return;}
+  const P={A:'Phase A · Stopp des Abwärtstrends',B:'Phase B · Aufbau der Ursache',C:'Phase C · Spring / Test',D:'Phase D · Jump-Bewegung',E:'Phase E · Nach BUEC oder relativem Zeitlimit'};
+  let h=window.HolyStocksFeedback.detail(D.feedback)+referenceH(D.reference)+overview(D.ov)+verdictH(D.verdict)+customH(D.cst)+(D.box?'':`<p class="note" style="margin:10px 0">${D.feedback?'Keine gültige Scannerzeichnung':'Keine Zeichnung'}: ${esc(deTxt(D.status))}</p>`)+`<h3>Punkte · erreicht / möglich</h3><div style="display:flex;align-items:center;gap:14px">${rose(D.phases,D.avg,130,{labels:true})}<div><div style="font-size:34px;font-weight:300;line-height:1">${scoreText(D)}</div>
     <div style="margin-top:8px">Konfidenz <span style="letter-spacing:1px">${dots(D.conf)}</span></div></div></div>
     <div class="note" style="margin-top:6px">Blatt größer als der gestrichelte Ring = Phase besser als der Board-Durchschnitt.</div>
-    <div class="flagline">${D.funnel.true?`<span class="chip on">${funnelIcon(10).replace(G.w,'#000')} echter Trichter</span>`:''}${D.spring?`<span class="chip">${esc(D.spring.status==='shakeout'?'Shakeout':D.spring.kind)}${D.spring.ok&&!D.spring.conf?'?':''}${D.spring.status==='shakeout'?' · Pflicht-Test fehlt oder ungültig':''}</span>`:(D.box?'<span class="chip">kein Spring</span>':'')}</div>`;
+    <div class="flagline">${D.funnel.true?`<span class="chip on">${funnelIcon(10).replace(G.w,'#000')} echter Trichter</span>`:''}${D.spring?`<span class="chip">${esc(D.spring.status==='shakeout'?'Shakeout':D.spring.longVariant?'Spring / Shakeout':D.spring.kind)}${D.spring.ok&&!D.spring.conf?'?':''}${D.spring.status==='shakeout'?' · Pflicht-Test fehlt oder ungültig':''}</span>`:(D.box?'<span class="chip">kein Spring</span>':'')}</div>`;
   const rowH=(r,key)=>{
     const ex=Array.isArray(EXPL[r.k])?EXPL[r.k]:null;
     const ru=(r.id&&RULES[r.id])||(ex&&ex[2]&&RULES[ex[2]])||null;
@@ -331,17 +359,22 @@ function renderSide(D){
   h+='<h3>Gesamt-Akkumulation</h3>'+sec('G','Phasenübergreifend','gilt für die ganze Akkumulation, nicht Teil der Rose');
   h+='<h3>Bewertung je Phase</h3>';
   for(const p of 'ABCDE') h+=sec(p,P[p]);
+  if(D.eventTime&&D.eventTime.accumulation){
+    const tm=D.eventTime.accumulation, limits=D.eventTime;
+    h+=`<h3>Zeitmaßstab</h3><dl class="kv"><dt>Akkumulationslänge</dt><dd>${tm.accumulation_bars} Kerzen · SC bis ${D.t[D.box.i1]||'Range-Ende'}</dd><dt>Umrechnung</dt><dd>${nf(tm.factor,2)} × Referenzfenster (${tm.reference_range_bars} Kerzen)</dd>${limits.buecMinimum!=null?`<dt>BUEC ab JAC-Peak</dt><dd>${limits.buecMinimum}–${limits.buecMaximum} Kerzen</dd><dt>Phase E spätestens</dt><dd>${limits.phaseEAfter} Kerzen nach JAC</dd>`:''}</dl><p class="note">Nach JAC bleibt die Akkumulationslänge fest. BUEC und Warren-Konsolidierung zählen nicht dazu.</p>`;
+  }
   if(D.spring){
     const s=D.spring;
     const description=s.explanation||s.kind;
     h+=`<h3>Spring / Shakeout</h3><p>${esc(description)}</p><dl class="kv">
-      <dt>Deutung</dt><dd>${esc(s.status==='shakeout'?'Shakeout (Typ-1-Kandidat ohne gültigen Test)':s.kind)}${s.ok&&!s.conf?' (möglich, noch kein JAC)':''}</dd>
+      <dt>Deutung</dt><dd>${esc(s.status==='shakeout'?'Shakeout (Typ-1-Kandidat ohne gültigen Test)':s.longVariant?'Spring / Shakeout':s.kind)}${s.ok&&!s.conf?' (möglich, noch kein JAC)':''}</dd>
       <dt>Spring-Punkte</dt><dd>${scoreText(s)}</dd>
       <dt>Volumen der Event-Kerzen</dt><dd>${nf(s.vr,2)} × ${s.status?'vorheriger Durchschnitt':'Median (gespeicherter Stand)'}</dd>
       <dt>Stich unter die Spanne</dt><dd>${nf(s.da,2)} ATR · ${nf(100*s.pen,1)} % der Range-Höhe</dd>
       <dt>Test</dt><dd>${s.nt?(s.ht?'Pflicht-Test gültig':'Pflicht-Test fehlt oder ungültig'):s.ok?'kein Pflicht-Test':'Typ noch ungeklärt'}</dd>
       <dt>Test-/Spring-Volumen</dt><dd>${s.testVolumeRatio==null?'–':nf(100*s.testVolumeRatio,0)+' %'}</dd>
-      <dt>Dauer des Ausflugs</dt><dd>${s.dur} ${s.dur===1?'Kerze':'Kerzen'}</dd></dl>`;
+      <dt>Dauer des Ausflugs</dt><dd>${s.dur} ${s.dur===1?'Kerze':'Kerzen'}</dd>
+      ${s.shortLimit!=null?`<dt>Zeitgrenzen dieses Prüfstands</dt><dd>kurz bis ${s.shortLimit}, Typ 1 bis ${s.typeOneLimit}, Testsuche ${s.testSearchLimit} Kerzen</dd>`:''}</dl>`;
     if(s.provisional) h+='<p class="note">Messgrenzen und Punktegewichte sind vorläufige Arbeitswerte.</p>';
   }
   if(D.funnel.score!=null) h+=`<h3>Trichter</h3><dl class="kv"><dt>Trichter-Wert</dt><dd>${nf(D.funnel.score,2)}</dd><dt>Amplituden-Trend (Spearman)</dt><dd>${nf(D.funnel.rho,2)}</dd><dt>letzte/erste Welle</dt><dd>${nf(D.funnel.lf,2)}</dd><dt>echter Trichter</dt><dd>${D.funnel.true?'ja':'nein'}</dd></dl>`;
@@ -350,10 +383,11 @@ function renderSide(D){
     <dt>Stopp klassisch (unter Spring/Tief)</dt><dd>${pf(pl.classic)} <span class="note">−${nf(pl.risk_classic,1)} %</span></dd><dt>Ziel (Creek + Spannenhöhe)</dt><dd>${pf(pl.target)}</dd></dl></div>
     <p class="note" style="margin-top:22px">Testlauf, keine Anlageberatung. Scanner v5 = v4 + Spring-, Trichter- und Stopp-Regeln; Schwellen teils vorläufig.</p>`;
   $('#side').innerHTML=h;
+  window.HolyStocksFeedback.bind($('#side'),openDetail);bindReviewOverlay(D);
   $$('#side .info').forEach(b=>b.onclick=e=>{e.stopPropagation(); const d=b.closest('.row').parentNode.querySelector(`.rinfo[data-for="${CSS.escape(b.dataset.r)}"]`); if(d) d.hidden=!d.hidden;});
 }
 function closeDetail(){ $('#detail').hidden=true; document.body.style.overflow=''; curId=null; charts.forEach(c=>c.remove()); charts=[]; history.replaceState(null,'',location.pathname+(cur==='scatter'?'#streu':cur==='tests'?'#tests':cur==='custom'?'#custom':'')); }
-function step(d){const o=isCustom(curId)?(B.custom||[]).filter(c=>c.f).map(c=>c.id):isTest(curId)?(B.tests||[]).filter(c=>c.f).map(c=>c.id):order; const k=o.indexOf(curId); const j=o[k+d]; if(j) openDetail(j);}
+function step(d){const o=String(curId).startsWith('f:')?(B.feedback?.cases||[]).map(c=>c.id):isCustom(curId)?(B.custom||[]).filter(c=>c.f).map(c=>c.id):isTest(curId)?(B.tests||[]).filter(c=>c.f).map(c=>c.id):order; const k=o.indexOf(curId); const j=o[k+d]; if(j) openDetail(j);}
 
 /* ---------- Legende ---------- */
 const CCOLS=['Watch','Positionen','Postmortem Fail','Postmortem Success'], CGRP={watch:'Watch',position:'Position',pm_fail:'Postmortem',pm_success:'Postmortem'};
@@ -381,16 +415,17 @@ function renderCustom(){
 }
 function renderTests(){
   const T=B.tests||[];
-  $('#pTests').innerHTML=`<h2>Test-Stocks <small>${T.length} von Evelyn beurteilte Aktien</small></h2><p class="note">Scanner v5 (heutige Regeln) auf Kursen bis ${(()=>{const l=T.map(c=>c.last).filter(Boolean).sort().pop();return l?dDE(l):'–';})()}; alle Ereignisse, Spanne, Creek und Phasen eingezeichnet. Ohne erkannte Struktur: nur Chart mit Grund. Pfeil im Chart = Urteilsdatum. Kursänderung vom Schluss am Urteilstag bis zum letzten Bar.</p>
+  $('#pTests').innerHTML=window.HolyStocksFeedback.section(B.feedback)+`<h2>Bisherige Test-Stocks <small>${T.length} von Evelyn beurteilte Aktien</small></h2><p class="note">Scanner v5 (heutige Regeln) auf Kursen bis ${(()=>{const l=T.map(c=>c.last).filter(Boolean).sort().pop();return l?dDE(l):'–';})()}; alle Ereignisse, Spanne, Creek und Phasen eingezeichnet. Ohne erkannte Struktur: nur Chart mit Grund. Pfeil im Chart = Urteilsdatum. Kursänderung vom Schluss am Urteilstag bis zum letzten Bar.</p>
   <div class="tlist">${T.map(c=>{const V=c.v||{};return `<button class="trow" data-t="${esc(c.id)}"${c.f?'':' disabled'}><b>${esc(c.sym)}</b><span class="nm">${esc(c.name)}</span>
    <span><small>Evelyn ${V.date?dDE(V.date):''}</small>${esc(V.evelyn||'–')}</span><span><small>Scanner heute</small>${esc(c.miss?'keine Struktur':(c.rej?'verworfen':'Struktur, Punkte '+scoreText(c)))}</span>
    <span class="pc">${V.pct==null?'–':(V.pct>0?'+':'')+nf(V.pct,1)+' %'}</span></button>`;}).join('')}</div>`;
+  window.HolyStocksFeedback.bind($('#pTests'),openDetail);
   $$('#pTests [data-t]').forEach(b=>b.onclick=()=>openDetail(b.dataset.t));
 }
 function renderLegend(){
   const ex={A:95,B:60,C:null,D:85};
   $('#pLegend').innerHTML=`<h2>Board</h2><p>Vier Spalten, von links nach rechts reift die Struktur. Je Spalte höchstens zehn Aktien, höchster Erfüllungsgrad des aktiven Punktebudgets oben. Phase A und frühe Phase B erscheinen nicht (noch Geister).</p>
-  <h2>Glyphe</h2><div class="lg"><div>${rose(ex,{A:88,B:72,C:60,D:80},110,{labels:true})}</div><div>Nightingale-Rose mit fünf Blättern für A, B, C, D und E. Phase D umfasst die bestätigte Jump-Bewegung und den BUEC. Phase E beginnt am BUEC-Abschluss, spätestens an der elften Kerze nach dem JAC; ein BUEC ist optional. Der graue Ring ist der Durchschnitt aller Board-Aktien in der jeweiligen Phase. Ein Blatt reicht über den Ring hinaus, wenn die Phase besser als der Durchschnitt ist, und bleibt innen, wenn sie schwächer ist. Radius = Ring × (1 + 0,45 × Abstand zum Durchschnitt in Standardabweichungen des Boards), damit kleine Unterschiede sichtbar werden. Ein Punkt statt eines Blatts heißt: Phase nicht anwendbar (z. B. kein Spring oder weder JAC noch Konsolidierung). Die Zahlen darunter zeigen erreichte / mögliche Punkte. Das verfügbare Budget wächst mit der Reife; technische Datenlücken werden davon ausgenommen. Die Summe enthält auch die phasenübergreifenden Punkte der Gesamt-Akkumulation (Spannenhöhe, -breite, relative Ruhe, Abwärtstrend davor …); diese stehen im Detail in einem eigenen Abschnitt und sind kein Blatt der Rose. Das ⓘ neben jedem Punkt erklärt zuerst, was er bedeutet und wie er berechnet wird; darunter folgen die Details der Regel und zuletzt, wann und von wem sie festgelegt wurde.</div>
+  <h2>Glyphe</h2><div class="lg"><div>${rose(ex,{A:88,B:72,C:60,D:80},110,{labels:true})}</div><div>Nightingale-Rose mit fünf Blättern für A, B, C, D und E. Phase D umfasst die bestätigte Jump-Bewegung und den BUEC. Phase E beginnt am BUEC-Abschluss, spätestens am relativen Zeitlimit nach dem JAC; ein BUEC ist optional. Referenz sind elf Kerzen bei 84 Akkumulationskerzen. Die Umrechnung nutzt vor JAC SC bis Prüfdatum, danach fest SC bis JAC. BUEC und Warren-Konsolidierung verlängern diese Basis nicht. Der graue Ring ist der Durchschnitt aller Board-Aktien in der jeweiligen Phase. Ein Blatt reicht über den Ring hinaus, wenn die Phase besser als der Durchschnitt ist, und bleibt innen, wenn sie schwächer ist. Radius = Ring × (1 + 0,45 × Abstand zum Durchschnitt in Standardabweichungen des Boards), damit kleine Unterschiede sichtbar werden. Ein Punkt statt eines Blatts heißt: Phase nicht anwendbar (z. B. kein Spring oder weder JAC noch Konsolidierung). Die Zahlen darunter zeigen erreichte / mögliche Punkte. Das verfügbare Budget wächst mit der Reife; technische Datenlücken werden davon ausgenommen. Die Summe enthält auch die phasenübergreifenden Punkte der Gesamt-Akkumulation (Spannenhöhe, -breite, relative Ruhe, Abwärtstrend davor …); diese stehen im Detail in einem eigenen Abschnitt und sind kein Blatt der Rose. Das ⓘ neben jedem Punkt erklärt zuerst, was er bedeutet und wie er berechnet wird; darunter folgen die Details der Regel und zuletzt, wann und von wem sie festgelegt wurde.</div>
   <div>${funnelIcon(16)}</div><div>Echter Trichter: Die Wellen in der Spanne werden von Welle zu Welle kleiner, obere Kante fällt, untere steigt (nach Francis Hunt).</div>
   <div style="font-size:15px;color:#f2f2f2">SC ●●●○○</div><div>Ereignis im Chart mit Bewertung 0–5 Punkten.</div>
   <div><span style="background:#f2f2f2;color:#000;padding:1px 6px;border-radius:3px;font-weight:600">AR ●●●●●</span></div><div>Top-Ereignis (volle Punktzahl): weiß hinterlegt.</div>
@@ -398,7 +433,7 @@ function renderLegend(){
   <h2>Kerzen und Linien</h2><div class="lg"><div>Kerzen</div><div>Hohl mit weißem Rand = steigend, grau gefüllt = fallend.</div>
   <div>Creek / Spannentief</div><div>Zwei gleiche durchgezogene graue Linien bis zum rechten Rand: oben die Oberkante der Spanne (AR-Hoch), unten das Spannentief (SC). Ohne Beschriftung.</div>
   <div>Mittellinie</div><div>Dunkel gestrichelt: Achse der Spanne, alternativer enger Stopp. Der klassische Stopp steht nur im Handelsplan.</div>
-  <div>Phasenleiste</div><div>Unten im Kurschart: A, B, C, D (Jump-Bewegung) und E (nach BUEC oder ab JAC + 11).</div></div>
+  <div>Phasenleiste</div><div>Unten im Kurschart: A, B, C, D (Jump-Bewegung) und E (nach BUEC oder relativem Zeitlimit).</div></div>
   <h2>Unterfenster</h2><p>Volumen, Weis-Wellen (dieselben Wellen wie in der Bewertung: Volumen je Welle kumuliert, Richtungswechsel nach 1,5 × Median-ATR der Spanne Gegenbewegung, die Welle endet an ihrem Wendepunkt), Harmonie (log(Kerzenkörper/mittlerer Körper ÷ Volumen/Median), nur Körper ohne Dochte, ±3 begrenzt; positiv = Rutschen, negativ = Schieben; im Trend werden Gegenkerzen ausgeblendet), Wikipedia-Aufrufe (Wikimedia-API, Artikel in der Sprache des Emittenten, falls gefunden) und Markttrend (Heimatindex mit SMA 50/200). Alle teilen die Zeitachse; jedes Fenster hat eine Datumsachse, das Datum der Kerze unter dem Mauszeiger steht oben im Kurschart.</p>
   <h2>Streudiagramm</h2><p>x = Fortschritt durch die Phasen (innerhalb einer Phase stetig geschätzt), y = Erreichte Punkte. Rechts oben ist es am heißesten. Die Schwänze zeigen, wo die Aktie an den letzten zehn Freitagen stand (Scanner mit damals verfügbaren Daten neu gerechnet). Ring = echter Trichter. Ein Spring ist nicht Pflicht; ohne gültigen Spring gibt es keine Spring-Punkte. Innerhalb jeder Board-Spalte zählt das Verhältnis erreichter zu möglichen Punkten absteigend; die Anzeige zeigt beide absoluten Werte. Einen zusätzlichen Vorrang für Karten mit Spring gibt es nicht.</p>
   <h2>Daten</h2><p>Kurse bis ${dDE(B.asof)} (gemeinsamer Kursdaten-Ordner, Tagesbars). ${B.n_scanned} Strukturen bewertet, ${B.cards.length} auf dem Board. Erstellt ${dDE(B.built)}. Testlauf, keine Anlageberatung.</p>${(B.review||[]).length?`<p>Beurteilte Fälle, die gerade nicht auf dem Board stehen (nur Detailansicht): ${B.review.map(c=>`<a href="#s=${encodeURIComponent(c.id)}" data-rev="${c.id}" style="color:#bdbdbd">${c.sym} (${c.rej?'verworfen':scoreText(c)})</a>`).join(', ')}</p>`:''}<p>Charts: <a href="https://www.tradingview.com/lightweight-charts/" style="color:#bdbdbd">TradingView Lightweight Charts</a> (Apache 2.0).</p>`;
@@ -411,7 +446,7 @@ function show(p){cur=p; ['Board','Scatter','Tests','Custom','Legend'].forEach(k=
   if(p==='scatter') renderScatter(); if(p==='board') renderBoard(); if(p==='legend') renderLegend(); if(p==='tests') renderTests(); if(p==='custom') renderCustom();
   if(!curId) history.replaceState(null,'',location.pathname+(p==='scatter'?'#streu':p==='legend'?'#legende':p==='tests'?'#tests':p==='custom'?'#custom':''));}
 async function init(){
-  B=await (await fetch('data/board.json')).json();
+  B=await (await fetch('data/board.json',{cache:'no-cache'})).json();
   try{B.custom=(await (await fetch('data/custom.json',{cache:'no-cache'})).json()).cards||[];}catch(e){B.custom=[];}
   try{RULES=await (await fetch('data/rules.json')).json();}catch(e){RULES={};}
   try{EXPL=await (await fetch('data/expl.json')).json();}catch(e){EXPL={};}
@@ -421,11 +456,16 @@ async function init(){
   $('#sub').textContent=`Wyckoff-Akkumulationen · Scanner v5 · Testlauf · Daten bis ${dDE(B.asof)}`;
   $('#tabBoard').onclick=()=>show('board'); $('#tabScatter').onclick=()=>show('scatter'); $('#tabLegend').onclick=()=>show('legend'); $('#tabTests').onclick=()=>show('tests'); $('#tabCustom').onclick=()=>show('custom');
   $('#tailToggle').onchange=renderScatter; $('#tipToggle').onchange=e=>{tips=e.target.checked; tip();};
+  $('#dFeedback').onclick=()=>$('#side').scrollIntoView({behavior:'smooth',block:'start'});
   $('#dBack').onclick=closeDetail; $('#dPrev').onclick=()=>step(-1); $('#dNext').onclick=()=>step(1);
   addEventListener('keydown',e=>{if($('#detail').hidden)return; if(e.key==='Escape')closeDetail(); if(e.key==='ArrowRight')step(1); if(e.key==='ArrowLeft')step(-1);});
   let rt; addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(cur==='board')$$('.card').forEach(b=>mini(b.querySelector('canvas'),B.cards.find(c=>c.id===b.dataset.id).m));},150);});
+  addEventListener('hashchange',()=>{
+    const target=decodeURIComponent(location.hash.slice(1));
+    if(target.startsWith('s=')&&target.slice(2)!==curId&&cardOf(target.slice(2)))openDetail(target.slice(2));
+  });
   const h=decodeURIComponent(location.hash.slice(1));
-  show(h==='streu'?'scatter':h==='legende'?'legend':h==='tests'||h.startsWith('s=t:')?'tests':h==='custom'||h.startsWith('s=c:')?'custom':'board');
+  show(h==='streu'?'scatter':h==='legende'?'legend':h==='tests'||h.startsWith('s=t:')||h.startsWith('s=f:')?'tests':h==='custom'||h.startsWith('s=c:')?'custom':'board');
   if(h.startsWith('s=')&&cardOf(h.slice(2))) openDetail(h.slice(2));
 }
 init();
