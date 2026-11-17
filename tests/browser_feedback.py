@@ -43,6 +43,8 @@ with sync_playwright() as playwright:
         assert detail['asof']<=case['feedback']['cutoff']
         assert detail['feedback']['originalVerdict']==case['feedback']['originalVerdict']
         if case['id'].startswith('f:euronext_rco:'):
+            assert case['feedback']['status']=='resolved'
+            expect(page.locator('#side .feedback-measurements tbody tr')).to_have_count(1)
             reference=detail['reviewOverlay']
             assert abs(reference['lo']-35.08)<0.001 and abs(reference['hi']-42.56)<0.001
             assert detail['t'][reference['i0']]=='2025-12-10'
