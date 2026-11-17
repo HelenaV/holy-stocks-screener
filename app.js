@@ -344,6 +344,12 @@ function bindReviewOverlay(D){
   input.onchange=()=>{D.hideReviewOverlay=!input.checked;charts.slice(0,2).forEach(chart=>chart.applyOptions({}));};
   header.appendChild(label);
 }
+function edgeTestsH(tests){
+  if(!tests)return '';
+  const rows=['lower','upper'].flatMap(edge=>(tests[edge]||[]).map(test=>`<tr><td>${edge==='lower'?'unten':'oben'}</td><td>${esc(test.event)}</td><td>${esc(dDE(test.date))}</td><td>${nf(test.volume,2)}×</td><td>${nf(test.bars,0)}</td></tr>`)).join('');
+  if(!rows)return '';
+  return `<details class="edge-test-details"><summary>Verwendete Kantentests</summary><p class="note">Initiale Referenzen eingeschlossen. Volumen relativ zum Referenzvolumen der Range.</p><table><thead><tr><th>Kante</th><th>Event</th><th>Datum</th><th>Vol.</th><th>Kerzen</th></tr></thead><tbody>${rows}</tbody></table><p class="note">Volumen letzter/erster Test: unten ${nf(tests.lowerLastFirst,2)}×, oben ${nf(tests.upperLastFirst,2)}×.<br>Mittlere Dauer (Median): unten ${nf(tests.lowerDuration,1)}, oben ${nf(tests.upperDuration,1)} Kerzen.</p></details>`;
+}
 function renderSide(D){
   if(!D.box){$('#side').innerHTML=window.HolyStocksFeedback.detail(D.feedback)+referenceH(D.reference)+overview(D.ov)+verdictH(D.verdict)+customH(D.cst)+`<p class="note" style="margin:10px 0">${D.feedback?'Keine gültige Scannerzeichnung':'Keine Zeichnung'}: ${esc(deTxt(D.status))}</p>`;window.HolyStocksFeedback.bind($('#side'),openDetail);bindReviewOverlay(D);return;}
   const P={A:'Phase A · Stopp des Abwärtstrends',B:'Phase B · Aufbau der Ursache',C:'Phase C · Spring / Test',D:'Phase D · Jump-Bewegung',E:'Phase E · Nach BUEC oder relativem Zeitlimit'};
@@ -397,7 +403,7 @@ function renderSide(D){
   if(pl) h+=`<h3>Handelsplan</h3><div class="plan"><p>${esc(pl.entry)}</p><dl class="kv"><dt>Letzter Kurs</dt><dd>${pf(pl.last)}</dd><dt>Stopp eng (Mittellinie)</dt><dd>${pf(pl.mid)} <span class="note">${pl.risk_mid>0?'−'+nf(pl.risk_mid,1)+' %':'Kurs darunter'}</span></dd>
     <dt>Stopp klassisch (unter Spring/Tief)</dt><dd>${pf(pl.classic)} <span class="note">−${nf(pl.risk_classic,1)} %</span></dd><dt>Ziel (Creek + Spannenhöhe)</dt><dd>${pf(pl.target)}</dd></dl></div>
     <p class="note" style="margin-top:22px">Testlauf, keine Anlageberatung. Scanner v5 = v4 + Spring-, Trichter- und Stopp-Regeln; Schwellen teils vorläufig.</p>`;
-  $('#side').innerHTML=h;
+  $('#side').innerHTML=h+edgeTestsH(D.edgeTests);
   window.HolyStocksFeedback.bind($('#side'),openDetail);bindReviewOverlay(D);
   $$('#side .info').forEach(b=>b.onclick=e=>{e.stopPropagation(); const d=b.closest('.row').parentNode.querySelector(`.rinfo[data-for="${CSS.escape(b.dataset.r)}"]`); if(d) d.hidden=!d.hidden;});
 }
