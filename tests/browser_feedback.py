@@ -42,6 +42,16 @@ with sync_playwright() as playwright:
         detail=page.request.get(base+'data/s/'+case['f']).json()
         assert detail['asof']<=case['feedback']['cutoff']
         assert detail['feedback']['originalVerdict']==case['feedback']['originalVerdict']
+        if case['id'].startswith('f:euronext_rco:'):
+            reference=detail['reviewOverlay']
+            assert abs(reference['lo']-35.08)<0.001 and abs(reference['hi']-42.56)<0.001
+            assert detail['t'][reference['i0']]=='2025-12-10'
+            assert [(span['ph'],span['start'],span['end']) for span in reference['measurementSpans']]==[
+                ('B','2026-01-20','2026-06-02'),('D','2026-06-03','2026-06-24')]
+            expect(page.locator('#side .feedback-window-legend')).to_contain_text('B-Vergleich')
+            expect(page.locator('#side .feedback-window-legend')).to_contain_text('D-Messung')
+            expect(page.locator('#side .feedback-measurement-note')).to_have_attribute('open','')
+            page.screenshot(path=str(artifacts/'remy-january-measurements.png'),full_page=True)
         if case['id'].startswith('f:nyse_ci:'):
             assert detail['box'] is None and detail['reviewOverlay']['hi']==281
             toggle=page.get_by_label('Referenz anzeigen (gestrichelt)')

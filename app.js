@@ -118,19 +118,22 @@ class WyOverlay{
     const line=(x0,x1,y,col,dash=[],lw=1)=>{if(y==null||x0==null)return;ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.setLineDash(dash);ctx.beginPath();ctx.moveTo(x0,Math.round(y)+.5);ctx.lineTo(x1,Math.round(y)+.5);ctx.stroke();ctx.setLineDash([]);};
     const txt=(s,x,y,col,al='left',w=400,sz=11)=>{ctx.font=`${w} ${sz}px Inter,Helvetica Neue,system-ui,sans-serif`;ctx.textAlign=al;ctx.fillStyle=col;ctx.fillText(s,x,y);ctx.textAlign='left';};
     const bx=D.box, xa=bx?X(bx.i0):null, xb=bx?X(bx.i1):null;
+    const ref=D.hideReviewOverlay?null:D.reviewOverlay;
     if(bg){
       if(xa!=null&&xb!=null){const yh=Y(bx.hi), yl=Y(bx.lo); ctx.fillStyle='rgba(255,255,255,.035)'; ctx.fillRect(xa-bs,yh,xb-xa+2*bs,yl-yh);}
+      if(ref?.i0!=null&&ref.lo!=null&&ref.hi!=null){const a=X(ref.i0),b=X(ref.i1);if(a!=null&&b!=null){ctx.fillStyle='rgba(190,190,190,.06)';ctx.fillRect(a-bs,Y(ref.hi),b-a+2*bs,Y(ref.lo)-Y(ref.hi));}}
       // (2026-11-02 11:11, Evelyn) no phase lines/letters in the price panel - only the phase bar at the bottom
       return;
     }
-    const ref=D.hideReviewOverlay?null:D.reviewOverlay;
     if(ref){
       const colour='#bdbdbd', x0=ref.i0==null?0:X(ref.i0), x1=X(ref.i1);
       if(x0!=null&&x1!=null){
         if(ref.lo!=null)line(x0,W,Y(ref.lo),colour,[6,5],1.2);
         if(ref.hi!=null)line(x0,W,Y(ref.hi),colour,[6,5],1.2);
-        if(ref.i0!=null && ref.lo!=null && ref.hi!=null){ctx.strokeStyle=colour;ctx.setLineDash([6,5]);ctx.beginPath();ctx.moveTo(x0,Y(ref.lo));ctx.lineTo(x0,Y(ref.hi));ctx.stroke();ctx.setLineDash([]);}
+        if(ref.i0!=null && ref.lo!=null && ref.hi!=null){ctx.strokeStyle=colour;ctx.setLineDash([6,5]);ctx.beginPath();ctx.moveTo(x0,Y(ref.lo));ctx.lineTo(x0,Y(ref.hi));ctx.moveTo(x1,Y(ref.lo));ctx.lineTo(x1,Y(ref.hi));ctx.stroke();ctx.setLineDash([]);}
       }
+      // Eigene Messleiste: Review-Fenster ändern weder erkannte Phasen noch Scores.
+      for(const [index,span] of (ref.measurementSpans||[]).entries()){const a=X(span.i0),b=X(span.i1);if(a==null||b==null)continue;ctx.fillStyle=index%2?'#bdbdbd':'#707070';ctx.fillRect(a-bs,H-38,Math.max(2,b-a+2*bs),5);ctx.font='600 10px Inter,Helvetica Neue,system-ui,sans-serif';const wide=b-a>90;const labelX=wide?(a+b)/2:Math.max(0,Math.min(W-ctx.measureText(span.label).width-4,b+5));txt(span.label,labelX,H-43,colour,wide?'center':'left',600,10);}
       const slots=[[-Infinity,-Infinity,-Infinity],[-Infinity,-Infinity,-Infinity]];
       ctx.font='500 10px Inter,Helvetica Neue,system-ui,sans-serif';
       for(const event of ref.events){const x=X(event.i), y=Y(event.p);if(x==null||y==null||x<0||x>W)continue;

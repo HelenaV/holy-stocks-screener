@@ -36,12 +36,16 @@
   }
   // Bereits im Chat übernommenes Feedback ist zentral gespeichert und bleibt sichtbar.
   function recorded(item){
-    const responses=(item.recordedFeedback||[]).map(response=>`<div class="feedback-record"><h4>Dein gespeichertes Feedback · ${date(response.date)}</h4><p>${escape(response.summary)}</p></div>`).join('');
+    const feedback=item.recordedFeedback||[];
+    const responseHtml=response=>`<div class="feedback-record"><h4>Dein gespeichertes Feedback · ${date(response.date)}</h4><p>${escape(response.summary)}</p></div>`;
+    const responses=feedback.length?responseHtml(feedback[feedback.length-1])+(feedback.length>1?`<details class="feedback-history"><summary>Frühere Rückmeldungen (${feedback.length-1})</summary>${feedback.slice(0,-1).map(responseHtml).join('')}</details>`:''):'';
     const analysis=item.measurementAnalysis;
     if(!analysis)return responses;
     const row=(title,values)=>`<tr><th>${title}</th><td>${date(values.phase_b_start)}–${date(values.phase_b_end)}<br>Ø ${Number(values.phase_b_mean).toLocaleString('de-DE',{maximumFractionDigits:0})}</td><td>${date(values.phase_d_start)}–${date(values.phase_d_end)}<br>Ø ${Number(values.phase_d_mean).toLocaleString('de-DE',{maximumFractionDigits:0})}</td></tr>`;
     const table=analysis.june?`<table class="feedback-measurements"><thead><tr><th>Bezug</th><th>B-Vergleich</th><th>D-Messung</th></tr></thead><tbody>${row('Juni',analysis.june)}${row('Oktober',analysis.october)}</tbody></table><p>Volumen am 13.10.: ${Number(analysis.october.volume_on_13_october).toLocaleString('de-DE')} · ca. ${analysis.october.thrust_volume_ratio.toFixed(2)}× Spannenmedian vor dem Oktober-Ausflug.</p>`:'';
-    return responses+`<details class="feedback-measurement-note"><summary>Welche Kerzen und Fenster Codex meint</summary><p>${escape(analysis.note)}</p>${table}</details>`;
+    const windows=(analysis.phase_windows||[]).map(window=>`<span><b>${escape(window.label)}:</b> ${date(window.start)}–${date(window.end)}</span>`).join(' · ');
+    const measurement=`<details class="feedback-measurement-note"${windows?' open':''}><summary>Welche Kerzen und Fenster Codex meint</summary><p>${escape(analysis.note)}</p>${windows?`<p class="feedback-window-legend">Graue Messleiste im Chart: ${windows}</p>`:''}${table}</details>`;
+    return windows?measurement+responses:responses+measurement;
   }
   // Eine Karte bündelt Anlass, Fragen, datierten Chart und Antwortentwurf.
   function card(card) {
