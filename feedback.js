@@ -19,11 +19,13 @@
   }
   // Dasselbe Antwortfeld wird in der Übersicht und im Prüfchart verwendet.
   function form(item) {
+    if(item.status==='resolved')return '<p class="note">Fachlich abgeschlossen – dein Urteil ist gespeichert.</p>';
     const id = escape(item.id), value = draft(item);
     return `<div class="feedback-answer"><label>Dein Feedback<textarea data-feedback-answer="${id}" rows="3" placeholder="Kurzes Urteil, Daten oder Grenzen und ein Satz zum Grund …">${escape(value)}</textarea></label><div class="feedback-actions"><button type="button" class="ghost" data-feedback-copy="${id}"${value.trim()?'':' disabled'}>Antwort kopieren</button><span class="note" data-feedback-status="${id}" role="status">${value.trim()?'Entwurf in diesem Browser gespeichert':''}</span></div></div>`;
   }
   // Konkrete fachliche Fragen gehören direkt zum jeweiligen Chart.
   function questions(item) {
+    if(!item.questions.length)return `<p class="note">${escape(item.nextStep||'Keine weitere Antwort benötigt.')}</p>`;
     return `<h4>Dein Blick darauf</h4><ol>${item.questions.map(question => `<li>${escape(question)}</li>`).join('')}</ol>`;
   }
   // Frühere Erwartungen und Scanner-Vergleich bleiben als solche gekennzeichnet.
@@ -32,29 +34,38 @@
     const price=value=>value==null?'offen':Number(value).toLocaleString('de-DE',{maximumFractionDigits:3});
     return `${item.originalVerdict?`<details><summary>Früheres Urteil und Referenz</summary><p>${escape(item.originalVerdict)}</p>${reference.bottom==null&&reference.creek==null?'<p class="note">Die damalige Geometrie ist nicht vollständig gespeichert. Bitte die heutige weiße Scannerzeichnung beurteilen oder die gemeinte andere Range nennen.</p>':''}<p>Referenz: Unterkante ${price(reference.bottom)}, Oberkante ${price(reference.creek)}; Beginn ${reference.start?date(reference.start):'nicht eindeutig gespeichert'}.</p>${comparison?`<p class="note">Früherer Scanner-Vergleich: ${date(comparison.start)}, Unterkante ${price(comparison.bottom)}, Oberkante ${price(comparison.creek)}. Das ist eine Vergleichszeichnung, kein bestätigtes Urteil.</p>`:''}</details>`:''}`;
   }
+  // Bereits im Chat übernommenes Feedback ist zentral gespeichert und bleibt sichtbar.
+  function recorded(item){
+    const responses=(item.recordedFeedback||[]).map(response=>`<div class="feedback-record"><h4>Dein gespeichertes Feedback · ${date(response.date)}</h4><p>${escape(response.summary)}</p></div>`).join('');
+    const analysis=item.measurementAnalysis;
+    if(!analysis)return responses;
+    const row=(title,values)=>`<tr><th>${title}</th><td>${date(values.phase_b_start)}–${date(values.phase_b_end)}<br>Ø ${Number(values.phase_b_mean).toLocaleString('de-DE',{maximumFractionDigits:0})}</td><td>${date(values.phase_d_start)}–${date(values.phase_d_end)}<br>Ø ${Number(values.phase_d_mean).toLocaleString('de-DE',{maximumFractionDigits:0})}</td></tr>`;
+    const table=analysis.june?`<table class="feedback-measurements"><thead><tr><th>Bezug</th><th>B-Vergleich</th><th>D-Messung</th></tr></thead><tbody>${row('Juni',analysis.june)}${row('Oktober',analysis.october)}</tbody></table><p>Volumen am 13.10.: ${Number(analysis.october.volume_on_13_october).toLocaleString('de-DE')} · ca. ${analysis.october.thrust_volume_ratio.toFixed(2)}× Spannenmedian vor dem Oktober-Ausflug.</p>`:'';
+    return responses+`<details class="feedback-measurement-note"><summary>Welche Kerzen und Fenster Codex meint</summary><p>${escape(analysis.note)}</p>${table}</details>`;
+  }
   // Eine Karte bündelt Anlass, Fragen, datierten Chart und Antwortentwurf.
   function card(card) {
     const item = {...card.feedback, chartId:card.id, symbol:card.sym, name:card.feedback.name};
     items.set(item.id,item);
-    return `<article class="feedback-case" data-feedback-case="${escape(item.id)}"><div class="feedback-heading"><div><h3>${escape(item.name)} <small>${escape(item.symbol)}</small></h3><p class="note">Prüfstand ${date(item.cutoff)} · ${escape(item.rules.join(', '))}</p></div><button type="button" class="ghost" data-feedback-chart="${escape(card.id)}">Chart öffnen</button></div><h4>${escape(item.title)}</h4><p>${escape(item.problem)}</p><p class="feedback-current">${escape(card.scannerStatus)}</p>${questions(item)}${context(item)}${form(item)}</article>`;
+    return `<article class="feedback-case" data-feedback-case="${escape(item.id)}"><div class="feedback-heading"><div><h3>${escape(item.name)} <small>${escape(item.symbol)}</small></h3><p class="note">Prüfstand ${date(item.cutoff)} · ${escape(item.rules.join(', '))}</p></div><button type="button" class="ghost" data-feedback-chart="${escape(card.id)}">Chart öffnen</button></div><h4>${escape(item.title)}</h4><p>${escape(item.problem)}</p><p class="feedback-current">${escape(card.scannerStatus)}</p>${recorded(item)}${questions(item)}${context(item)}${form(item)}</article>`;
   }
   // Aktuelle Widersprüche zuerst; ältere Fälle und Kalibrierungen sind aufklappbar.
   function section(payload) {
     items = new Map();
     if (!payload || !payload.cases?.length) return '';
     const groups = [...new Set(payload.cases.map(card=>card.feedback.group))];
-    return `<section class="feedback-section" aria-labelledby="feedbackHeading"><h2 id="feedbackHeading">Dein Feedback wird gebraucht <small>${payload.cases.length} Charts</small></h2><p>Beginne mit den aktuellen Widersprüchen. Jeder Chart verwendet den angegebenen historischen Prüfstand und die heutigen Regeln. Die hellgrauen gestrichelten Linien und „Ref.“-Marker zeigen die gespeicherte frühere Erwartung bzw. eine ausdrücklich vorläufige Kalibrierungsmarkierung; sie bleiben auch bei verworfenen Strukturen sichtbar, soweit die Geometrie gespeichert ist. Weiße Linien gehören zur heutigen Scannerzeichnung.</p><p class="note">Deine Antwort wird nur in diesem Browser zwischengespeichert. Kopiere sie anschließend in unseren Chat, damit ich sie übernehmen kann. Ein Entwurf ändert noch kein gespeichertes Urteil.</p><div class="feedback-actions"><button type="button" class="ghost" data-feedback-copy-all>Alle Antworten kopieren</button><span class="note" data-feedback-total role="status"></span></div>${groups.map((group,index)=>`<details class="feedback-group"${index===0?' open':''}><summary>${escape(group)} <small>${payload.cases.filter(card=>card.feedback.group===group).length} Charts</small></summary><div class="feedback-grid">${payload.cases.filter(card=>card.feedback.group===group).map(card).join('')}</div></details>`).join('')}${payload.decisions?.length?`<h3 class="feedback-group">Übergreifende Entscheidungen</h3><div class="feedback-grid">${payload.decisions.map(decision=>{const item={...decision,id:'decision:'+decision.id};items.set(item.id,item);return `<article class="feedback-case"><h3>${escape(item.title)}</h3><p>${escape(item.problem)}</p>${questions(item)}${form(item)}</article>`;}).join('')}</div>`:''}<details class="feedback-owned"><summary>Bei Codex – dafür brauche ich kein neues Urteil</summary><ul>${(payload.handledByCodex||[]).map(task=>`<li><b>${escape(task.title)}:</b> ${escape(task.reason)}</li>`).join('')}</ul></details></section>`;
+    return `<section class="feedback-section" aria-labelledby="feedbackHeading"><h2 id="feedbackHeading">Dein Feedback wird gebraucht <small>${payload.cases.length} Charts</small></h2><p class="note">${payload.cases.filter(c=>(c.feedback.status||'open')==='open').length} offene Rückfragen · ${payload.cases.filter(c=>c.feedback.status==='recorded').length} Rückmeldung erfasst · ${payload.cases.filter(c=>c.feedback.status==='resolved').length} abgeschlossen</p><p>Beginne mit den aktuellen Widersprüchen. Jeder Chart verwendet den angegebenen historischen Prüfstand und die heutigen Regeln. Die hellgrauen gestrichelten Linien und „Ref.“-Marker zeigen die gespeicherte frühere Erwartung bzw. eine ausdrücklich vorläufige Kalibrierungsmarkierung; sie bleiben auch bei verworfenen Strukturen sichtbar, soweit die Geometrie gespeichert ist. Weiße Linien gehören zur heutigen Scannerzeichnung.</p><p class="note">Deine Antwort wird nur in diesem Browser zwischengespeichert. Kopiere sie anschließend in unseren Chat, damit ich sie übernehmen kann. Ein Entwurf ändert noch kein gespeichertes Urteil.</p><div class="feedback-actions"><button type="button" class="ghost" data-feedback-copy-all>Alle Antworten kopieren</button><span class="note" data-feedback-total role="status"></span></div>${groups.map((group,index)=>`<details class="feedback-group"${index===0?' open':''}><summary>${escape(group)} <small>${payload.cases.filter(card=>card.feedback.group===group).length} Charts</small></summary><div class="feedback-grid">${payload.cases.filter(card=>card.feedback.group===group).map(card).join('')}</div></details>`).join('')}${payload.decisions?.length?`<h3 class="feedback-group">Übergreifende Entscheidungen</h3><div class="feedback-grid">${payload.decisions.map(decision=>{const item={...decision,id:'decision:'+decision.id};items.set(item.id,item);return `<article class="feedback-case"><h3>${escape(item.title)}</h3><p>${escape(item.problem)}</p>${questions(item)}${form(item)}</article>`;}).join('')}</div>`:''}<details class="feedback-owned"><summary>Bei Codex – dafür brauche ich kein neues Urteil</summary><ul>${(payload.handledByCodex||[]).map(task=>`<li><b>${escape(task.title)}:</b> ${escape(task.reason)}</li>`).join('')}</ul></details></section>`;
   }
   // Zeigt dieselben Fragen im Chart, auch wenn keine gültige Struktur vorliegt.
   function detail(packet) {
     if (!packet) return '';
     const item = items.get(packet.id) || {...packet,symbol:'',name:packet.name};
     items.set(item.id,item);
-    return `<section class="feedback-case feedback-detail"><h3>Dein Feedback wird gebraucht</h3><p class="note">Historischer Prüfstand ${date(item.cutoff)} · ${item.currentAccepted?'gültiger Treffer nach heutigen Regeln':'keine gültige Struktur; eine weiße Zeichnung ist gegebenenfalls nur diagnostisch'}</p><h4>${escape(item.title)}</h4><p>${escape(item.problem)}</p>${questions(item)}${context(item)}${form(item)}</section>`;
+    return `<section class="feedback-case feedback-detail"><h3>${item.status==='resolved'?'Fachlich abgeschlossen':item.status==='recorded'?'Dein Feedback ist erfasst':'Dein Feedback wird gebraucht'}</h3><p class="note">Historischer Prüfstand ${date(item.cutoff)} · ${item.currentAccepted?'gültiger Treffer nach heutigen Regeln':'keine gültige Struktur; eine weiße Zeichnung ist gegebenenfalls nur diagnostisch'}</p><h4>${escape(item.title)}</h4><p>${escape(item.problem)}</p>${recorded(item)}${questions(item)}${context(item)}${form(item)}</section>`;
   }
   // Zählt Entwürfe, ohne sie als fachlich geklärt oder übermittelt zu markieren.
   function refresh() {
-    const count = [...items.values()].filter(item=>draft(item).trim()).length;
+    const count = [...items.values()].filter(item=>item.status!=='resolved' && draft(item).trim()).length;
     document.querySelectorAll('[data-feedback-total]').forEach(element=>{element.textContent=`${count} Antwortentwürfe vorhanden`;});
   }
   // Das Kopierformat bewahrt Aktie, Prüfdatum, Fragen und die eigene Antwort.
@@ -88,7 +99,7 @@
       return copy(text(item),owner,status);
     };});
     container.querySelectorAll('[data-feedback-copy-all]').forEach(button=>{button.onclick=()=>{
-      const answered=[...items.values()].filter(item=>draft(item).trim());
+      const answered=[...items.values()].filter(item=>item.status!=='resolved' && draft(item).trim());
       const status=container.querySelector('[data-feedback-total]');
       if(!answered.length){status.textContent='Noch keine Antwort eingegeben.';return;}
       return copy(answered.map(text).join('\n\n'),button.parentElement,status);

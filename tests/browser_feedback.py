@@ -27,7 +27,7 @@ with sync_playwright() as playwright:
     field.fill('Testentwurf: Range prüfen, Phase D ab 01.10. Kein fachliches Urteil.')
     field.locator('..').locator('..').get_by_role('button',name='Antwort kopieren',exact=True).click()
     copied=page.evaluate('navigator.clipboard.readText()')
-    assert 'Whitbread' in copied and 'Prüfstand 02.11.2026' in copied and 'Testentwurf:' in copied
+    assert first['feedback']['name'] in copied and 'Prüfstand' in copied and 'Testentwurf:' in copied
     page.reload();expect(page.locator('#pTests [data-feedback-answer]').first).to_have_value('Testentwurf: Range prüfen, Phase D ab 01.10. Kein fachliches Urteil.')
     # Alle historischen Fälle öffnen, auch ohne aktuelle gültige Struktur.
     for case in cases:
@@ -35,9 +35,10 @@ with sync_playwright() as playwright:
         if group.count():group.evaluate('(element)=>element.open=true')
         page.locator(f'#pTests [data-feedback-chart="{case["id"]}"]').click()
         expect(page.locator('#detail')).to_be_visible()
-        expect(page.locator('#side [data-feedback-answer]')).to_have_count(1)
+        expect(page.locator('#side [data-feedback-answer]')).to_have_count(0 if case['feedback'].get('status')=='resolved' else 1)
         expect(page.locator('#c0 canvas').first).to_be_visible()
         assert case['feedback']['title'] in page.locator('#side').inner_text()
+        if case['feedback'].get('status')=='resolved':assert 'Dein gespeichertes Feedback' in page.locator('#side').inner_text()
         detail=page.request.get(base+'data/s/'+case['f']).json()
         assert detail['asof']<=case['feedback']['cutoff']
         assert detail['feedback']['originalVerdict']==case['feedback']['originalVerdict']

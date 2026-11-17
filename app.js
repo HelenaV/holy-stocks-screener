@@ -131,11 +131,15 @@ class WyOverlay{
         if(ref.hi!=null)line(x0,W,Y(ref.hi),colour,[6,5],1.2);
         if(ref.i0!=null && ref.lo!=null && ref.hi!=null){ctx.strokeStyle=colour;ctx.setLineDash([6,5]);ctx.beginPath();ctx.moveTo(x0,Y(ref.lo));ctx.lineTo(x0,Y(ref.hi));ctx.stroke();ctx.setLineDash([]);}
       }
-      const slots=[-Infinity,-Infinity];
+      const slots=[[-Infinity,-Infinity,-Infinity],[-Infinity,-Infinity,-Infinity]];
+      ctx.font='500 10px Inter,Helvetica Neue,system-ui,sans-serif';
       for(const event of ref.events){const x=X(event.i), y=Y(event.p);if(x==null||y==null||x<0||x>W)continue;
         const lane=event.lo?1:0, text='Ref. '+(event.approximate?'≈ ':'')+event.k;
-        const lx=Math.max(x,slots[lane]+8),ly=event.lo?H-128:20;
-        txt(text,lx,ly,colour,'left',500,10);ctx.strokeStyle=colour;ctx.setLineDash([2,3]);ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(lx,ly+(event.lo?-12:4));ctx.stroke();ctx.setLineDash([]);slots[lane]=lx+ctx.measureText(text).width;
+        const labelWidth=ctx.measureText(text).width;
+        const lx=Math.max(0,Math.min(x-labelWidth/2,W-labelWidth-4));
+        let tier=slots[lane].findIndex(end=>end+6<=lx);if(tier<0)tier=2;
+        const ly=event.lo?H-128-tier*12:20+tier*12;
+        txt(text,lx,ly,colour,'left',500,10);ctx.strokeStyle=colour;ctx.setLineDash([2,3]);ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(lx+labelWidth/2,ly+(event.lo?-12:4));ctx.stroke();ctx.setLineDash([]);slots[lane][tier]=lx+labelWidth;
       }
     }
     // Phasenleiste unten
@@ -195,6 +199,14 @@ class VolCap{
       for(let i=0;i<D.t.length;i++){const v=D.v[i]; if(!(v>cap)) continue; const x=ts.timeToCoordinate(D.t[i]); if(x==null) continue;
         ctx.fillStyle=D.c[i]>=D.o[i]?'#cfcfcf':'#555'; ctx.beginPath(); ctx.moveTo(x-bw/2,y+1); ctx.lineTo(x+bw/2,y+1); ctx.lineTo(x,yT); ctx.closePath(); ctx.fill();
         ctx.fillStyle='#8a8a8a'; ctx.fillText(vMult(v/med),x,yT-1);}
+      // Review-Hinweise markieren dieselbe Kerze auch direkt im Volumenpanel.
+      if(!D.hideReviewOverlay){for(const marker of D.reviewOverlay?.events||[]){
+        if(!marker.volume)continue;
+        const x=ts.logicalToCoordinate(marker.i), vy=this.series.priceToCoordinate(Math.min(D.v[marker.i],cap));
+        if(x==null||vy==null)continue;
+        ctx.strokeStyle='#bdbdbd';ctx.lineWidth=1;ctx.beginPath();ctx.arc(x,vy,4,0,2*Math.PI);ctx.stroke();
+        ctx.fillStyle='#bdbdbd';ctx.fillText('Ref. '+D.t[marker.i].slice(5).split('-').reverse().join('.'),x,Math.max(24,vy-8));
+      }}
       ctx.restore();
     });}
 }
@@ -326,7 +338,7 @@ function bindReviewOverlay(D){
   const label=document.createElement('label');label.className='reference-toggle';
   const input=document.createElement('input');input.type='checkbox';input.checked=true;
   label.append(input,document.createTextNode(' Referenz anzeigen (gestrichelt)'));
-  input.onchange=()=>{D.hideReviewOverlay=!input.checked;charts[0]?.applyOptions({});};
+  input.onchange=()=>{D.hideReviewOverlay=!input.checked;charts.slice(0,2).forEach(chart=>chart.applyOptions({}));};
   header.appendChild(label);
 }
 function renderSide(D){
