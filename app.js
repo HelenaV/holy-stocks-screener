@@ -133,7 +133,7 @@ class WyOverlay{
         if(ref.i0!=null && ref.lo!=null && ref.hi!=null){ctx.strokeStyle=colour;ctx.setLineDash([6,5]);ctx.beginPath();ctx.moveTo(x0,Y(ref.lo));ctx.lineTo(x0,Y(ref.hi));ctx.moveTo(x1,Y(ref.lo));ctx.lineTo(x1,Y(ref.hi));ctx.stroke();ctx.setLineDash([]);}
       }
       // Eigene Messleiste: Review-Fenster ändern weder erkannte Phasen noch Scores.
-      for(const [index,span] of (ref.measurementSpans||[]).entries()){const a=X(span.i0),b=X(span.i1);if(a==null||b==null)continue;ctx.fillStyle=index%2?'#bdbdbd':'#707070';ctx.fillRect(a-bs,H-38,Math.max(2,b-a+2*bs),5);ctx.font='600 10px Inter,Helvetica Neue,system-ui,sans-serif';const wide=b-a>90;const labelX=wide?(a+b)/2:Math.max(0,Math.min(W-ctx.measureText(span.label).width-4,b+5));txt(span.label,labelX,H-43,colour,wide?'center':'left',600,10);}
+      for(const [index,span] of (ref.measurementSpans||[]).entries()){const a=X(span.i0),b=X(span.i1);if(a==null||b==null)continue;ctx.fillStyle=index%2?'#bdbdbd':'#707070';ctx.fillRect(a-bs,H-68,Math.max(2,b-a+2*bs),5);ctx.font='600 10px Inter,Helvetica Neue,system-ui,sans-serif';const wide=b-a>90;const labelX=wide?(a+b)/2:Math.max(0,Math.min(W-ctx.measureText(span.label).width-4,b+5));txt(span.label,labelX,H-73,colour,wide?'center':'left',600,10);}
       const slots=[[-Infinity,-Infinity,-Infinity],[-Infinity,-Infinity,-Infinity]];
       ctx.font='500 10px Inter,Helvetica Neue,system-ui,sans-serif';
       for(const event of ref.events){const x=X(event.i), y=Y(event.p);if(x==null||y==null||x<0||x>W)continue;
