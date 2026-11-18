@@ -48,7 +48,39 @@ function renderBoard(){
     });
     el.appendChild(col);
   });
-  requestAnimationFrame(()=>$$('.card').forEach(b=>mini(b.querySelector('canvas'),B.cards.find(c=>c.id===b.dataset.id).m)));
+  requestAnimationFrame(()=>$$('#pBoard .card').forEach(b=>mini(b.querySelector('canvas'),B.cards.find(c=>c.id===b.dataset.id).m)));
+}
+/* ---------- Rejected (Evelyn 2026-11-17, R-S-17): verworfene Strukturen, Board-Aufbau, nach Punkten ---------- */
+const REJINFO='Strukturen, die eine harte Regel verworfen hat. Je Aktie zeigt die Karte die verworfene Struktur mit den meisten Punkten; die Detailansicht listet die übrigen. Punkte / Max nach dem phasenabhängigen Budget (späte B 130, C 150, D 175, E 185; nicht anwendbare Teile fallen aus dem Maximum). Die Punkte sind nur zur Prüfung und ändern nichts am Board.';
+const rejShort=r=>String(r||'').split(': ')[0];
+function renderRejected(){
+  const R=B.rejected||[], tot=B.rejectedTotals||[], el=$('#pRejected'); el.innerHTML='';
+  B.cols.forEach((name,ci)=>{
+    const cards=R.filter(c=>c.col===ci), n=tot[ci]??cards.length;
+    const more=n>cards.length?` Gezeigt werden die ${cards.length} punktstärksten von ${n}.`:'';
+    const early=ci===0&&B.rejectedEarlyOnly?` ${B.rejectedEarlyOnly} weitere Aktien haben nur verworfene Strukturen in früher Phase B (nicht im Board).`:'';
+    const col=document.createElement('section'); col.className='col';
+    col.innerHTML=`<div class="colh"><div class="n">0${ci+1}</div><h2><span>${name} <button class="info rinfo-btn" aria-label="Erklärung" title="Erklärung">ⓘ</button></span><small>${n}</small></h2><p>${COLDESC[ci]}</p><p class="rjinfo" hidden>${esc(REJINFO+more+early)}</p><div class="prog"><i style="left:${ci*25}%;width:25%"></i></div></div>`;
+    col.querySelector('.rinfo-btn').onclick=e=>{e.stopPropagation(); const p=col.querySelector('.rjinfo'); p.hidden=!p.hidden;};
+    cards.forEach((c,k)=>{
+      const b=document.createElement('button'); b.className='card rj'; b.dataset.id=c.id;
+      const fx=[`<span class="why">${esc(rejShort(c.rej))}</span>`]; if(c.nOther) fx.push(`<span>+${c.nOther} weitere</span>`); if(c.valid) fx.push('<span>gültige Struktur im Board</span>');
+      b.innerHTML=`<div class="hd"><span class="tk"><span class="rank">${k+1}</span>${c.sym.split(':')[1]||c.sym}</span><span class="nm">${esc(c.name)}</span></div>
+        <div class="gl">${rose(c.ph,B.avg,58)}<div class="sc">${scoreText(c)}</div></div><canvas></canvas><div class="fx">${fx.join('')}</div>`;
+      b.onclick=()=>openDetail(c.id);
+      b.onmousemove=e=>tip(e,`<b>${esc(c.sym)}</b> · ${esc(c.name)}<br>Punkte ${scoreText(c)}<br>${esc(c.rej)}`);
+      b.onmouseleave=()=>tip();
+      col.appendChild(b);
+    });
+    el.appendChild(col);
+  });
+  requestAnimationFrame(()=>$$('#pRejected .card').forEach(b=>{const c=R.find(z=>z.id===b.dataset.id); if(c&&c.m) mini(b.querySelector('canvas'),c.m);}));
+}
+function rejectedH(X){if(!X)return'';
+  const rows=(X.others||[]).map(o=>`<tr><td>${o.start?dDE(o.start):'–'} – ${o.end?dDE(o.end):'–'}</td><td>${esc(o.colName)}</td><td>${nf(o.points)} / ${nf(o.maxPoints)}</td><td>${esc(o.reason)}</td></tr>`).join('');
+  return `<h3>Verworfen <button class="info rj-i" aria-label="Erklärung" title="Erklärung">ⓘ</button></h3><p class="note rj-x" hidden>${esc(REJINFO)}${X.unscored?` Dazu ${X.unscored} früh verworfene Kandidaten ohne fertige Spanne (ohne Punkte, nicht gelistet).`:''}</p>
+    <dl class="kv"><dt>Grund</dt><dd>${esc(X.reason)}</dd><dt>Punkte / Max</dt><dd>${nf(X.points)} / ${nf(X.maxPoints)}</dd><dt>Spalte</dt><dd>${esc(X.colName)}</dd><dt>Spanne</dt><dd>${X.start?dDE(X.start):'–'} – ${X.end?dDE(X.end):'–'}</dd>${X.valid?'<dt>Board</dt><dd>Die Aktie hat zusätzlich eine gültige Struktur.</dd>':''}</dl>
+    ${rows?`<h3>Weitere verworfene Strukturen</h3><table class="rjt"><thead><tr><th>Spanne</th><th>Spalte</th><th>Punkte / Max</th><th>Grund</th></tr></thead><tbody>${rows}</tbody></table>`:''}`;
 }
 function esc(s){return String(s??'').replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));}
 const CFGDE={breakout_without_ut_or_spring:'Ausbruch ohne UT oder Spring',erratic_range:'erratische Spanne',jac_too_high:'JAC zu hoch',new_climax:'neuer Climax',no_prior_decline:'kein Abwärtstrend davor',phase_b_too_short:'Phase B zu kurz',phase_e_too_late:'zu spät (Phase E)',range_not_respected:'Spanne nicht eingehalten',sc_above_older_low:'SC über älterem Tief',sc_stepping_base:'gestufte Tiefs vor dem SC',top_near_prior_high:'Oberkante nah am Vorhoch',ut_too_high:'UT zu hoch'};
@@ -220,10 +252,11 @@ function baseOpts(dateLabel){return{autoSize:true,layout:{attributionLogo:false,
   localization:{locale:'de-DE',dateFormat:'dd.MM.yyyy'},handleScale:{axisPressedMouseMove:{time:true,price:true}}};}
 
 // R-S-12: judged charts (tests/cases) that are not on the board: detail page only (#s=<id>, linked in the legend)
-function cardOf(id){return B.cards.find(z=>z.id===id)||(B.review||[]).find(z=>z.id===id)||(B.tests||[]).find(z=>z.id===id&&z.f)||(B.custom||[]).find(z=>z.id===id&&z.f)||(B.feedback?.cases||[]).find(z=>z.id===id);}
-const isTest=id=>/^[tcf]:/.test(String(id)), isCustom=id=>String(id).startsWith('c:');
+function cardOf(id){return B.cards.find(z=>z.id===id)||(B.rejected||[]).find(z=>z.id===id)||(B.review||[]).find(z=>z.id===id)||(B.tests||[]).find(z=>z.id===id&&z.f)||(B.custom||[]).find(z=>z.id===id&&z.f)||(B.feedback?.cases||[]).find(z=>z.id===id);}
+const isTest=id=>/^[tcf]:/.test(String(id)), isCustom=id=>String(id).startsWith('c:'), isRej=id=>String(id).startsWith('r:');
 async function openDetail(id){
   if(String(id).startsWith('f:')&&cur!=='tests')show('tests');
+  if(isRej(id)&&cur!=='rejected')show('rejected');
   $('#detail').classList.toggle('feedback-mode',String(id).startsWith('f:'));
   $('#dFeedback').hidden=!String(id).startsWith('f:');
   curId=id; location.hash='s='+encodeURIComponent(id); $('#detail').hidden=false; document.body.style.overflow='hidden';
@@ -231,7 +264,7 @@ async function openDetail(id){
   const D=await (await fetch('data/s/'+c.f)).json(); if(curId!==id)return;
   charts.forEach(ch=>ch.remove()); charts=[];
   $('#dSym').textContent=D.sym; $('#dName').textContent=D.name;
-  $('#dMeta').innerHTML=`${D.reference?'<span>Prüfstand '+dDE(D.reference.date)+'</span>':''}<span>${isTest(id)?(isCustom(id)?'Custom · '+esc(CGRP[(D.cst||{}).gruppe]||deTxt((D.cst||{}).gruppe)||'')+' · ':'Test-Stock · ')+esc(D.colName)+(c.rej?' · '+esc(deTxt(c.rej)):''):D.colName+(B.cards.some(z=>z.id===id)?'':(c.rej?' · nicht auf dem Board – '+esc(deTxt(c.rej)):' · nicht auf dem Board (beurteilter Fall)'))}</span><span>Daten bis ${dDE(D.asof)}</span><span class="big">${scoreText(D)}</span>`;
+  $('#dMeta').innerHTML=`${D.reference?'<span>Prüfstand '+dDE(D.reference.date)+'</span>':''}<span>${isRej(id)?'Rejected · '+esc(D.colName)+' · verworfen':isTest(id)?(isCustom(id)?'Custom · '+esc(CGRP[(D.cst||{}).gruppe]||deTxt((D.cst||{}).gruppe)||'')+' · ':'Test-Stock · ')+esc(D.colName)+(c.rej?' · '+esc(deTxt(c.rej)):''):D.colName+(B.cards.some(z=>z.id===id)?'':(c.rej?' · nicht auf dem Board – '+esc(deTxt(c.rej)):' · nicht auf dem Board (beurteilter Fall)'))}</span><span>Daten bis ${dDE(D.asof)}</span><span class="big">${scoreText(D)}</span>`;
   const LW=window.LightweightCharts, T=D.t, n=T.length;
   const mk=(k,dateLabel=false,extra={})=>{const ch=LW.createChart($('#c'+k),Object.assign(baseOpts(dateLabel),extra)); charts.push(ch); return ch;};
   // Kurs
@@ -353,7 +386,7 @@ function edgeTestsH(tests){
 function renderSide(D){
   if(!D.box){$('#side').innerHTML=window.HolyStocksFeedback.detail(D.feedback)+referenceH(D.reference)+overview(D.ov)+verdictH(D.verdict)+customH(D.cst)+`<p class="note" style="margin:10px 0">${D.feedback?'Keine gültige Scannerzeichnung':'Keine Zeichnung'}: ${esc(deTxt(D.status))}</p>`;window.HolyStocksFeedback.bind($('#side'),openDetail);bindReviewOverlay(D);return;}
   const P={A:'Phase A · Stopp des Abwärtstrends',B:'Phase B · Aufbau der Ursache',C:'Phase C · Spring / Test',D:'Phase D · Jump-Bewegung',E:'Phase E · Nach BUEC oder relativem Zeitlimit'};
-  let h=window.HolyStocksFeedback.detail(D.feedback)+referenceH(D.reference)+overview(D.ov)+verdictH(D.verdict)+customH(D.cst)+(D.box?'':`<p class="note" style="margin:10px 0">${D.feedback?'Keine gültige Scannerzeichnung':'Keine Zeichnung'}: ${esc(deTxt(D.status))}</p>`)+`<h3>Punkte · erreicht / möglich</h3><div style="display:flex;align-items:center;gap:14px">${rose(D.phases,D.avg,130,{labels:true})}<div><div style="font-size:34px;font-weight:300;line-height:1">${scoreText(D)}</div>
+  let h=window.HolyStocksFeedback.detail(D.feedback)+referenceH(D.reference)+rejectedH(D.rejected)+overview(D.ov)+verdictH(D.verdict)+customH(D.cst)+(D.box?'':`<p class="note" style="margin:10px 0">${D.feedback?'Keine gültige Scannerzeichnung':'Keine Zeichnung'}: ${esc(deTxt(D.status))}</p>`)+`<h3>Punkte · erreicht / möglich</h3><div style="display:flex;align-items:center;gap:14px">${rose(D.phases,D.avg,130,{labels:true})}<div><div style="font-size:34px;font-weight:300;line-height:1">${scoreText(D)}</div>
     <div style="margin-top:8px">Konfidenz <span style="letter-spacing:1px">${dots(D.conf)}</span></div></div></div>
     <div class="note" style="margin-top:6px">Blatt größer als der gestrichelte Ring = Phase besser als der Board-Durchschnitt.</div>
     <div class="flagline">${D.funnel.true?`<span class="chip on">${funnelIcon(10).replace(G.w,'#000')} echter Trichter</span>`:''}${D.spring?`<span class="chip">${esc(D.spring.status==='shakeout'?'Shakeout':D.spring.longVariant?'Spring / Shakeout':D.spring.kind)}${D.spring.ok&&!D.spring.conf?'?':''}${D.spring.status==='shakeout'?' · Pflicht-Test fehlt oder ungültig':''}</span>`:(D.box?'<span class="chip">kein Spring</span>':'')}</div>`;
@@ -405,10 +438,11 @@ function renderSide(D){
     <p class="note" style="margin-top:22px">Testlauf, keine Anlageberatung. Scanner v5 = v4 + Spring-, Trichter- und Stopp-Regeln; Schwellen teils vorläufig.</p>`;
   $('#side').innerHTML=h+edgeTestsH(D.edgeTests);
   window.HolyStocksFeedback.bind($('#side'),openDetail);bindReviewOverlay(D);
-  $$('#side .info').forEach(b=>b.onclick=e=>{e.stopPropagation(); const d=b.closest('.row').parentNode.querySelector(`.rinfo[data-for="${CSS.escape(b.dataset.r)}"]`); if(d) d.hidden=!d.hidden;});
+  const rji=$('#side .rj-i'); if(rji) rji.onclick=e=>{e.stopPropagation(); const x=$('#side .rj-x'); if(x) x.hidden=!x.hidden;};
+  $$('#side .row .info').forEach(b=>b.onclick=e=>{e.stopPropagation(); const d=b.closest('.row').parentNode.querySelector(`.rinfo[data-for="${CSS.escape(b.dataset.r)}"]`); if(d) d.hidden=!d.hidden;});
 }
-function closeDetail(){ $('#detail').hidden=true; document.body.style.overflow=''; curId=null; charts.forEach(c=>c.remove()); charts=[]; history.replaceState(null,'',location.pathname+(cur==='scatter'?'#streu':cur==='tests'?'#tests':cur==='custom'?'#custom':'')); }
-function step(d){const o=String(curId).startsWith('f:')?(B.feedback?.cases||[]).map(c=>c.id):isCustom(curId)?(B.custom||[]).filter(c=>c.f).map(c=>c.id):isTest(curId)?(B.tests||[]).filter(c=>c.f).map(c=>c.id):order; const k=o.indexOf(curId); const j=o[k+d]; if(j) openDetail(j);}
+function closeDetail(){ $('#detail').hidden=true; document.body.style.overflow=''; curId=null; charts.forEach(c=>c.remove()); charts=[]; history.replaceState(null,'',location.pathname+(cur==='scatter'?'#streu':cur==='tests'?'#tests':cur==='custom'?'#custom':cur==='rejected'?'#rejected':'')); }
+function step(d){const o=String(curId).startsWith('f:')?(B.feedback?.cases||[]).map(c=>c.id):isCustom(curId)?(B.custom||[]).filter(c=>c.f).map(c=>c.id):isTest(curId)?(B.tests||[]).filter(c=>c.f).map(c=>c.id):isRej(curId)?(B.rejected||[]).map(c=>c.id):order; const k=o.indexOf(curId); const j=o[k+d]; if(j) openDetail(j);}
 
 /* ---------- Legende ---------- */
 const CCOLS=['Watch','Positionen','Postmortem Fail','Postmortem Success'], CGRP={watch:'Watch',position:'Position',pm_fail:'Postmortem',pm_success:'Postmortem'};
@@ -463,9 +497,9 @@ function renderLegend(){
 
 /* ---------- Navigation ---------- */
 let cur='board';
-function show(p){cur=p; ['Board','Scatter','Tests','Custom','Legend'].forEach(k=>{$('#p'+k).hidden=k.toLowerCase()!==p; const t=$('#tab'+k); t.classList.toggle('on',k.toLowerCase()===p); t.setAttribute('aria-selected',k.toLowerCase()===p);});
-  if(p==='scatter') renderScatter(); if(p==='board') renderBoard(); if(p==='legend') renderLegend(); if(p==='tests') renderTests(); if(p==='custom') renderCustom();
-  if(!curId) history.replaceState(null,'',location.pathname+(p==='scatter'?'#streu':p==='legend'?'#legende':p==='tests'?'#tests':p==='custom'?'#custom':''));}
+function show(p){cur=p; ['Board','Rejected','Scatter','Tests','Custom','Legend'].forEach(k=>{$('#p'+k).hidden=k.toLowerCase()!==p; const t=$('#tab'+k); t.classList.toggle('on',k.toLowerCase()===p); t.setAttribute('aria-selected',k.toLowerCase()===p);});
+  if(p==='scatter') renderScatter(); if(p==='board') renderBoard(); if(p==='legend') renderLegend(); if(p==='tests') renderTests(); if(p==='custom') renderCustom(); if(p==='rejected') renderRejected();
+  if(!curId) history.replaceState(null,'',location.pathname+(p==='scatter'?'#streu':p==='legend'?'#legende':p==='tests'?'#tests':p==='custom'?'#custom':p==='rejected'?'#rejected':''));}
 async function init(){
   B=await (await fetch('data/board.json',{cache:'no-cache'})).json();
   try{B.custom=(await (await fetch('data/custom.json',{cache:'no-cache'})).json()).cards||[];}catch(e){B.custom=[];}
@@ -475,18 +509,18 @@ async function init(){
   for(const p of 'ABCDE'){const v=B.cards.map(c=>c.ph[p]).filter(x=>x!=null), m=v.reduce((a,b)=>a+b,0)/v.length; SD[p]=v.length?Math.max(3,Math.sqrt(v.reduce((a,b)=>a+(b-m)**2,0)/v.length)):8;}
   order=B.cards.map(c=>c.id);
   $('#sub').textContent=`Wyckoff-Akkumulationen · Scanner v5 · Testlauf · Daten bis ${dDE(B.asof)}`;
-  $('#tabBoard').onclick=()=>show('board'); $('#tabScatter').onclick=()=>show('scatter'); $('#tabLegend').onclick=()=>show('legend'); $('#tabTests').onclick=()=>show('tests'); $('#tabCustom').onclick=()=>show('custom');
+  $('#tabBoard').onclick=()=>show('board'); $('#tabScatter').onclick=()=>show('scatter'); $('#tabLegend').onclick=()=>show('legend'); $('#tabTests').onclick=()=>show('tests'); $('#tabCustom').onclick=()=>show('custom'); $('#tabRejected').onclick=()=>show('rejected');
   $('#tailToggle').onchange=renderScatter; $('#tipToggle').onchange=e=>{tips=e.target.checked; tip();};
   $('#dFeedback').onclick=()=>$('#side').scrollIntoView({behavior:'smooth',block:'start'});
   $('#dBack').onclick=closeDetail; $('#dPrev').onclick=()=>step(-1); $('#dNext').onclick=()=>step(1);
   addEventListener('keydown',e=>{if($('#detail').hidden)return; if(e.key==='Escape')closeDetail(); if(e.key==='ArrowRight')step(1); if(e.key==='ArrowLeft')step(-1);});
-  let rt; addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(cur==='board')$$('.card').forEach(b=>mini(b.querySelector('canvas'),B.cards.find(c=>c.id===b.dataset.id).m));},150);});
+  let rt; addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(cur==='board')$$('#pBoard .card').forEach(b=>mini(b.querySelector('canvas'),B.cards.find(c=>c.id===b.dataset.id).m)); if(cur==='rejected')renderRejected();},150);});
   addEventListener('hashchange',()=>{
     const target=decodeURIComponent(location.hash.slice(1));
     if(target.startsWith('s=')&&target.slice(2)!==curId&&cardOf(target.slice(2)))openDetail(target.slice(2));
   });
   const h=decodeURIComponent(location.hash.slice(1));
-  show(h==='streu'?'scatter':h==='legende'?'legend':h==='tests'||h.startsWith('s=t:')||h.startsWith('s=f:')?'tests':h==='custom'||h.startsWith('s=c:')?'custom':'board');
+  show(h==='streu'?'scatter':h==='legende'?'legend':h==='tests'||h.startsWith('s=t:')||h.startsWith('s=f:')?'tests':h==='custom'||h.startsWith('s=c:')?'custom':h==='rejected'||h.startsWith('s=r:')?'rejected':'board');
   if(h.startsWith('s=')&&cardOf(h.slice(2))) openDetail(h.slice(2));
 }
 init();
