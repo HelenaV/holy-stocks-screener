@@ -238,7 +238,7 @@ async function openDetail(id){
   D.backtestTrade=c.trade;
   charts.forEach(ch=>ch.remove()); charts=[];
   $('#dSym').textContent=D.sym; $('#dName').textContent=D.name;
-  $('#dMeta').innerHTML=`${D.reference?'<span>Prüfstand '+dDE(D.reference.date)+'</span>':''}<span>${isBacktest(id)?'Backtest · '+formatR(c.trade.r):isRej(id)?'Rejected · '+esc(D.colName)+' · verworfen':isTest(id)?(isCustom(id)?'Custom · '+esc(CGRP[(D.cst||{}).gruppe]||deTxt((D.cst||{}).gruppe)||'')+' · ':'Test-Stock · ')+esc(D.colName)+(c.rej?' · '+esc(deTxt(c.rej)):''):D.colName+(B.cards.some(z=>z.id===id)?'':(c.rej?' · nicht auf dem Board – '+esc(deTxt(c.rej)):' · nicht auf dem Board (beurteilter Fall)'))}</span><span>Daten bis ${dDE(D.asof)}</span><span class="big">${scoreText(D)}</span>`;
+  $('#dMeta').innerHTML=`${D.reference?'<span>Prüfstand '+dDE(D.reference.date)+'</span>':''}<span>${isBacktest(id)?'Backtest · '+formatR(c.trade.r):isRej(id)?'Rejected · '+esc(D.colName)+' · verworfen':isTest(id)?(isCustom(id)?'Custom · '+esc(CGRP[(D.cst||{}).gruppe]||deTxt((D.cst||{}).gruppe)||'')+' · ':'Test-Stock · ')+esc(D.colName)+(c.rej?' · '+esc(deTxt(c.rej)):''):D.colName+(B.cards.some(z=>z.id===id)?'':(c.rej?' · nicht auf dem Board – '+esc(deTxt(c.rej)):' · nicht auf dem Board (beurteilter Fall)'))}</span><span>${isBacktest(id)?'Signal am '+dDE(D.asof)+' · Chart bis '+dDE(D.t[D.t.length-1]):'Daten bis '+dDE(D.asof)}</span><span class="big">${scoreText(D)}</span>`;
   const LW=window.LightweightCharts, T=D.t, n=T.length;
   const mk=(k,dateLabel=false,extra={})=>{const ch=LW.createChart($('#c'+k),Object.assign(baseOpts(dateLabel),extra)); charts.push(ch); return ch;};
   // Kurs
@@ -247,11 +247,12 @@ async function openDetail(id){
     priceFormat:{type:'custom',formatter:pf,minMove:0.0001}});
   cs.setData(T.map((t,i)=>({time:t,open:D.o[i],high:D.h[i],low:D.l[i],close:D.c[i]})));
   cs.attachPrimitive(new WyOverlay(D));
+  drawBacktestTrade(c0,cs,T,D.backtestTrade);
   // Custom trade lines (Evelyn 2026-11-02): entry solid, stop dashed, target dotted; gray, no labels, like the range lines; nothing when empty
   {const P=D.cst||{}; [[P.entry_price,0],[P.stop,2],[P.target,1]].forEach(([p,ls])=>{if(p!=null&&isFinite(p)) cs.createPriceLine({price:+p,color:G.m,lineWidth:1,lineStyle:ls,axisLabelVisible:false,title:''});});}
   {const md=D.verdict?D.verdict.date:(D.cst&&D.cst.added?D.cst.added:null); if(md){const k=T.findIndex(t=>t>md); const tt=k<0?T[n-1]:T[k];
     cs.setMarkers([{time:tt,position:'aboveBar',color:G.w,shape:'arrowDown',text:(D.verdict?'Urteil ':'hinzugefügt ')+dDE(md).slice(0,6)}]);}}
-  $('#pl0').innerHTML=`Kurs <b id="hov" class="hov"></b><small>hohl = steigend · grau gefüllt = fallend · Ereignisse mit Bewertung ●○ (0–5), weiß hinterlegt = Top, ✦ = außergewöhnlich</small>`;
+  $('#pl0').innerHTML=`Kurs <b id="hov" class="hov"></b><small>hohl = steigend · grau gefüllt = fallend · Ereignisse mit Bewertung ●○ (0–5), weiß hinterlegt = Top, ✦ = außergewöhnlich${D.backtestTrade?' · gestrichelt = aktiver Backtest-Stopp':''}</small>`;
   // Volumen (Evelyn 2026-11-03): axis capped at 4× median of the visible bars; cut bars get a tip and the true multiple. Trend is the OLS line from the start of phase A to the end of phase B.
   const c1=mk(1,false,{rightPriceScale:{borderColor:'#222',minimumWidth:78,scaleMargins:{top:.18,bottom:.1}}});
   const vs=c1.addHistogramSeries({priceFormat:{type:'volume'},priceLineVisible:false,lastValueVisible:false});
@@ -497,6 +498,26 @@ function drawBacktestCards(){
     if(card?.m) mini(button.querySelector('canvas'),card.m);
   });
 }
+function drawBacktestTrade(chart,candles,dates,trade){
+  if(!trade?.entryDate) return;
+  const start=dates.indexOf(trade.entryDate);
+  const end=trade.exitDate?dates.indexOf(trade.exitDate):dates.length-1;
+  if(start<0||end<start) return;
+  const markers=[{time:dates[start],position:'belowBar',color:G.w,shape:'arrowUp',text:'Einstieg '+pf(trade.entry)}];
+  if(trade.exitDate) markers.push({time:dates[end],position:'aboveBar',color:G.w,shape:'arrowDown',text:'Ausstieg '+formatR(trade.r)});
+  candles.setMarkers(markers);
+  const changes=new Map();
+  for(const {confirmed,stop} of trade.stopUpdates||[]){
+    const i=dates.indexOf(confirmed);
+    if(i>=start) changes.set(i+1,stop);
+  }
+  let stop=trade.initialStop;
+  const values=dates.slice(start,end+1).map((time,i)=>{
+    stop=changes.get(start+i)??stop;
+    return {time,value:stop};
+  });
+  chart.addLineSeries({lineType:1,lineStyle:2,color:G.m,lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}).setData(values);
+}
 function backtestTradeH(trade){
   if(!trade) return '';
   const price=(value,date)=>value==null?'–':pf(value)+' · '+dDE(date);
@@ -504,6 +525,7 @@ function backtestTradeH(trade){
     <dt>Status</dt><dd>${esc(tradeStatuses[trade.status])}</dd>
     <dt>Einstieg</dt><dd>${price(trade.entry,trade.entryDate)}</dd>
     <dt>Anfangsstopp</dt><dd>${pf(trade.initialStop)}</dd>
+    <dt>Anfangsrisiko (1 R)</dt><dd>${pf(trade.initialRisk)}</dd>
     <dt>Ausstieg</dt><dd>${price(trade.exit,trade.exitDate)}</dd>
     <dt>Ergebnis vor Kosten</dt><dd>${formatR(trade.r)}</dd></dl>`;
 }
