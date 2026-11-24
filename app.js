@@ -234,7 +234,7 @@ async function openDetail(id){
   $('#detail').classList.toggle('feedback-mode',String(id).startsWith('f:'));
   $('#dFeedback').hidden=!String(id).startsWith('f:');
   curId=id; location.hash='s='+encodeURIComponent(id); $('#detail').hidden=false; document.body.style.overflow='hidden';
-  const D=await (await fetch('data/s/'+c.f)).json(); if(curId!==id)return;
+  const D=await (await fetch('data/s/'+c.f,isBacktest(id)?{cache:'no-cache'}:undefined)).json(); if(curId!==id)return;
   D.backtestTrade=c.trade;
   charts.forEach(ch=>ch.remove()); charts=[];
   $('#dSym').textContent=D.sym; $('#dName').textContent=D.name;
