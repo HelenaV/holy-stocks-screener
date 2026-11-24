@@ -36,19 +36,23 @@ function renderBoard(){
     const cards=B.cards.filter(c=>c.col===ci); // Scanner-Reihenfolge nach vollständigem Score übernehmen.
     const col=document.createElement('section'); col.className='col';
     col.innerHTML=`<div class="colh"><div class="n">0${ci+1}</div><h2>${name}<small>${cards.length}</small></h2><p>${COLDESC[ci]}</p><div class="prog"><i style="left:${ci*25}%;width:25%"></i></div></div>`;
-    cards.forEach((c,k)=>{
-      const b=document.createElement('button'); b.className='card'; b.dataset.id=c.id;
-      const fx=[]; if(c.ft) fx.push(`<span>${funnelIcon()} Trichter</span>`); if(c.sk) fx.push(`<span>${esc(c.sk)}</span>`);
-      b.innerHTML=`<div class="hd"><span class="tk"><span class="rank">${k+1}</span>${c.sym.split(':')[1]||c.sym}</span><span class="nm">${esc(c.name)}</span></div>
-        <div class="gl">${rose(c.ph,B.avg,58)}<div class="sc">${scoreText(c)}</div></div><canvas></canvas><div class="fx">${fx.join('')}</div>`;
-      b.onclick=()=>openDetail(c.id);
-      b.onmousemove=e=>tip(e,`<b>${esc(c.sym)}</b> · ${esc(c.name)}<br>Punkte ${scoreText(c)} · A ${phaseScoreText(c,'A')} · B ${phaseScoreText(c,'B')} · C ${phaseScoreText(c,'C')} · D ${phaseScoreText(c,'D')} · E ${phaseScoreText(c,'E')}`);
-      b.onmouseleave=()=>tip();
-      col.appendChild(b);
-    });
+    cards.forEach((c,k)=>col.appendChild(structureCard(c,k)));
     el.appendChild(col);
   });
   requestAnimationFrame(()=>$$('#pBoard .card').forEach(b=>mini(b.querySelector('canvas'),B.cards.find(c=>c.id===b.dataset.id).m)));
+}
+function structureCard(c,k){
+  const b=document.createElement('button'); b.className='card'; b.dataset.id=c.id;
+  const fx=[];
+  if(c.trade) fx.push(`<span>${dDE(c.last)} · ${formatR(c.trade.r)}</span>`);
+  if(c.ft) fx.push(`<span>${funnelIcon()} Trichter</span>`);
+  if(c.sk) fx.push(`<span>${esc(c.sk)}</span>`);
+  b.innerHTML=`<div class="hd"><span class="tk"><span class="rank">${k+1}</span>${esc(c.sym.split(':')[1]||c.sym)}</span><span class="nm">${esc(c.name)}</span></div>
+    <div class="gl">${rose(c.ph,B.avg,58)}<div class="sc">${scoreText(c)}</div></div><canvas></canvas><div class="fx">${fx.join('')}</div>`;
+  b.onclick=()=>openDetail(c.id);
+  b.onmousemove=e=>tip(e,`<b>${esc(c.sym)}</b> · ${esc(c.name)}<br>Punkte ${scoreText(c)} · A ${phaseScoreText(c,'A')} · B ${phaseScoreText(c,'B')} · C ${phaseScoreText(c,'C')} · D ${phaseScoreText(c,'D')} · E ${phaseScoreText(c,'E')}`);
+  b.onmouseleave=()=>tip();
+  return b;
 }
 /* ---------- Rejected (Evelyn 2026-11-17, R-S-17): verworfene Strukturen, Board-Aufbau, nach Punkten ---------- */
 const REJINFO='Strukturen, die eine harte Regel verworfen hat. Je Aktie zeigt die Karte die verworfene Struktur mit den meisten Punkten; die Detailansicht listet die übrigen. Punkte / Max nach dem phasenabhängigen Budget (späte B 130, C 150, D 175, E 185; nicht anwendbare Teile fallen aus dem Maximum). Die Punkte sind nur zur Prüfung und ändern nichts am Board.';
@@ -95,43 +99,6 @@ function mini(cv,m){
   ctx.strokeStyle=G.w; ctx.lineWidth=1.2; ctx.beginPath(); m.c.forEach((v,i)=>{if(v==null)return; i?ctx.lineTo(X(i),Y(v)):ctx.moveTo(X(i),Y(v));}); ctx.stroke();
   for(const e of m.ev){const x=X(e.i), v=m.c[e.i]; if(v==null)continue; ctx.fillStyle=G.bg; ctx.strokeStyle=G.w; ctx.lineWidth=1;
     ctx.beginPath(); ctx.arc(x,Y(v),2.6,0,7); ctx.fill(); ctx.stroke();}
-}
-
-/* ---------- Scatter ---------- */
-function renderScatter(){
-  const el=$('#scatter'), W=1200, H=640, ml=56, mr=24, mt=40, mb=46, tails=$('#tailToggle').checked;
-  const all=B.cards.flatMap(c=>[c.points,...(tails?c.hist.filter(h=>h.x!=null&&h.points!=null).map(h=>h.points):[])]);
-  const y0=Math.floor(Math.min(...all)/5)*5, y1=Math.max(y0+5,Math.ceil(Math.max(...all)/5)*5);
-  const X=x=>ml+x/4*(W-ml-mr), Y=q=>mt+(y1-q)/(y1-y0)*(H-mt-mb);
-  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Streudiagramm Fortschritt gegen erreichte Punkte">`;
-  B.cols.forEach((n,i)=>{ if(i%2) s+=`<rect x="${X(i)}" y="${mt}" width="${X(1)-X(0)}" height="${H-mt-mb}" fill="#101010"/>`;
-    s+=`<text x="${X(i+.5)}" y="${mt-14}" fill="${G.m}" font-size="12" text-anchor="middle" letter-spacing=".08em">${n.toUpperCase()}</text>`;});
-  for(let q=y0;q<=y1;q+=5){s+=`<line x1="${ml}" x2="${W-mr}" y1="${Y(q)}" y2="${Y(q)}" stroke="#1c1c1c"/><text x="${ml-10}" y="${Y(q)+4}" fill="${G.d}" font-size="11" text-anchor="end">${q}</text>`;}
-  const qm=B.cards.reduce((a,c)=>a+c.points,0)/B.cards.length;
-  s+=`<line x1="${X(2)}" x2="${X(2)}" y1="${mt}" y2="${H-mb}" stroke="${G.x}" stroke-dasharray="3 4"/><line x1="${ml}" x2="${W-mr}" y1="${Y(qm)}" y2="${Y(qm)}" stroke="${G.x}" stroke-dasharray="3 4"/>`;
-  s+=`<text x="${W-mr-8}" y="${mt+18}" fill="${G.d}" font-size="12" text-anchor="end" letter-spacing=".22em">HEISS</text><text x="${W-mr-8}" y="${mt+33}" fill="${G.x}" font-size="10.5" text-anchor="end">reif und sauber</text>`;
-  s+=`<text x="${ml}" y="${H-12}" fill="${G.m}" font-size="11">Fortschritt durch die Phasen →</text><text x="${W-mr}" y="${H-12}" fill="${G.d}" font-size="11" text-anchor="end">gestrichelt: Mitte der Phasen · Ø Punkte ${nf(qm)}</text>`;
-  s+=`<text transform="translate(16 ${mt+(H-mt-mb)/2}) rotate(-90)" fill="${G.m}" font-size="11" text-anchor="middle">Erreichte Punkte</text>`;
-  const G1=[],G2=[],G3=[];
-  B.cards.forEach(c=>{
-    if(tails){const pts=[...c.hist.map(h=>h.x==null||h.points==null?null:[X(h.x),Y(h.points),h.d]),[X(c.x),Y(c.points),'heute']];
-      let segs=[],cur=[]; pts.forEach(p=>{if(p==null){if(cur.length)segs.push(cur);cur=[];}else cur.push(p);}); if(cur.length)segs.push(cur);
-      G1.push(`<g class="tail" data-id="${c.id}">`+segs.map(sg=>`<polyline points="${sg.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ')}" fill="none" stroke="#2b2b2b" stroke-width="1" stroke-linejoin="round"/>`).join('')
-        +pts.filter(p=>p&&p[2]!=='heute').map(p=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="1.6" fill="#333"/>`).join('')+'</g>');}
-    const x=X(c.x), y=Y(c.points);
-    G2.push(`<g class="pt" data-id="${c.id}"><circle cx="${x}" cy="${y}" r="9" fill="transparent"/>${c.ft?`<circle cx="${x}" cy="${y}" r="8" fill="none" stroke="${G.m}" stroke-width="1"/>`:''}<circle class="dot" cx="${x}" cy="${y}" r="4.6" fill="${G.w}" stroke="${G.w}" stroke-width="1.4"/></g>`);
-    G3.push(`<text class="lab" data-id="${c.id}" x="${x+8}" y="${y-7}" fill="${G.d}" font-size="10.5">${esc(c.sym.split(':')[1]||c.sym)}</text>`);
-  });
-  s+=G1.join('')+G3.join('')+G2.join('')+'</svg>';
-  el.innerHTML=s;
-  const hl=(id,on)=>{const t=el.querySelector(`.tail[data-id="${CSS.escape(id)}"]`); if(t){t.querySelectorAll('polyline').forEach(p=>{p.setAttribute('stroke',on?G.w:'#2b2b2b');p.setAttribute('stroke-width',on?1.8:1);});t.querySelectorAll('circle').forEach(p=>p.setAttribute('fill',on?G.w:"#333"));if(on)t.parentNode.appendChild(t);}
-    const l=el.querySelector(`.lab[data-id="${CSS.escape(id)}"]`); if(l){l.setAttribute('fill',on?G.w:G.d);l.setAttribute('font-weight',on?700:400);if(on){l.textContent=(B.cards.find(c=>c.id===id).sym.split(':')[1])+' · '+B.cards.find(c=>c.id===id).name;l.parentNode.appendChild(l);}else l.textContent=B.cards.find(c=>c.id===id).sym.split(':')[1];}
-    el.querySelectorAll('.tail').forEach(t=>t.style.opacity=on&&t.dataset.id!==id?.25:1);};
-  el.querySelectorAll('.pt').forEach(p=>{const id=p.dataset.id, c=B.cards.find(z=>z.id===id);
-    p.onmouseenter=()=>hl(id,true); p.onmouseleave=()=>{hl(id,false);tip();};
-    p.onmousemove=e=>tip(e,`<b>${esc(c.sym)}</b> · ${esc(c.name)}<br>${B.cols[c.col]} · Punkte ${scoreText(c)}<br>Verlauf: ${c.hist.filter(h=>h.points!=null).map(h=>scoreText(h)).join(' → ')}`);
-    p.onclick=()=>openDetail(id);});
-  $('#scNote').textContent=tails?`Schwänze: Scanner v5 mit Daten bis zu den Freitagen ${dDE(B.fridays[0])} … ${dDE(B.fridays[B.fridays.length-1])}, Lücke = damals nicht auf dem Board (Phase A/früh B oder keine Struktur).`:'';
 }
 
 /* ---------- Tooltip (Standard: aus) ---------- */
@@ -252,19 +219,26 @@ function baseOpts(dateLabel){return{autoSize:true,layout:{attributionLogo:false,
   localization:{locale:'de-DE',dateFormat:'dd.MM.yyyy'},handleScale:{axisPressedMouseMove:{time:true,price:true}}};}
 
 // R-S-12: judged charts (tests/cases) that are not on the board: detail page only (#s=<id>, linked in the legend)
-function cardOf(id){return B.cards.find(z=>z.id===id)||(B.rejected||[]).find(z=>z.id===id)||(B.review||[]).find(z=>z.id===id)||(B.tests||[]).find(z=>z.id===id&&z.f)||(B.custom||[]).find(z=>z.id===id&&z.f)||(B.feedback?.cases||[]).find(z=>z.id===id);}
+function cardOf(id){return backtestCards().find(c=>c.id===id)||B.cards.find(z=>z.id===id)||(B.rejected||[]).find(z=>z.id===id)||(B.review||[]).find(z=>z.id===id)||(B.tests||[]).find(z=>z.id===id&&z.f)||(B.custom||[]).find(z=>z.id===id&&z.f)||(B.feedback?.cases||[]).find(z=>z.id===id);}
 const isTest=id=>/^[tcf]:/.test(String(id)), isCustom=id=>String(id).startsWith('c:'), isRej=id=>String(id).startsWith('r:');
 async function openDetail(id){
+  if(isBacktest(id)){
+    const run=String(id).split(':')[1];
+    if(cur!=='backtest'||String(backtestRun)!==run) show('backtest',run);
+    try{await loadBacktests();}catch(e){return;}
+  }
+  const c=cardOf(id);
+  if(!c) return;
   if(String(id).startsWith('f:')&&cur!=='tests')show('tests');
   if(isRej(id)&&cur!=='rejected')show('rejected');
   $('#detail').classList.toggle('feedback-mode',String(id).startsWith('f:'));
   $('#dFeedback').hidden=!String(id).startsWith('f:');
   curId=id; location.hash='s='+encodeURIComponent(id); $('#detail').hidden=false; document.body.style.overflow='hidden';
-  const c=cardOf(id);
   const D=await (await fetch('data/s/'+c.f)).json(); if(curId!==id)return;
+  D.backtestTrade=c.trade;
   charts.forEach(ch=>ch.remove()); charts=[];
   $('#dSym').textContent=D.sym; $('#dName').textContent=D.name;
-  $('#dMeta').innerHTML=`${D.reference?'<span>Prüfstand '+dDE(D.reference.date)+'</span>':''}<span>${isRej(id)?'Rejected · '+esc(D.colName)+' · verworfen':isTest(id)?(isCustom(id)?'Custom · '+esc(CGRP[(D.cst||{}).gruppe]||deTxt((D.cst||{}).gruppe)||'')+' · ':'Test-Stock · ')+esc(D.colName)+(c.rej?' · '+esc(deTxt(c.rej)):''):D.colName+(B.cards.some(z=>z.id===id)?'':(c.rej?' · nicht auf dem Board – '+esc(deTxt(c.rej)):' · nicht auf dem Board (beurteilter Fall)'))}</span><span>Daten bis ${dDE(D.asof)}</span><span class="big">${scoreText(D)}</span>`;
+  $('#dMeta').innerHTML=`${D.reference?'<span>Prüfstand '+dDE(D.reference.date)+'</span>':''}<span>${isBacktest(id)?'Backtest · '+formatR(c.trade.r):isRej(id)?'Rejected · '+esc(D.colName)+' · verworfen':isTest(id)?(isCustom(id)?'Custom · '+esc(CGRP[(D.cst||{}).gruppe]||deTxt((D.cst||{}).gruppe)||'')+' · ':'Test-Stock · ')+esc(D.colName)+(c.rej?' · '+esc(deTxt(c.rej)):''):D.colName+(B.cards.some(z=>z.id===id)?'':(c.rej?' · nicht auf dem Board – '+esc(deTxt(c.rej)):' · nicht auf dem Board (beurteilter Fall)'))}</span><span>Daten bis ${dDE(D.asof)}</span><span class="big">${scoreText(D)}</span>`;
   const LW=window.LightweightCharts, T=D.t, n=T.length;
   const mk=(k,dateLabel=false,extra={})=>{const ch=LW.createChart($('#c'+k),Object.assign(baseOpts(dateLabel),extra)); charts.push(ch); return ch;};
   // Kurs
@@ -386,7 +360,7 @@ function edgeTestsH(tests){
 function renderSide(D){
   if(!D.box){$('#side').innerHTML=window.HolyStocksFeedback.detail(D.feedback)+referenceH(D.reference)+overview(D.ov)+verdictH(D.verdict)+customH(D.cst)+`<p class="note" style="margin:10px 0">${D.feedback?'Keine gültige Scannerzeichnung':'Keine Zeichnung'}: ${esc(deTxt(D.status))}</p>`;window.HolyStocksFeedback.bind($('#side'),openDetail);bindReviewOverlay(D);return;}
   const P={A:'Phase A · Stopp des Abwärtstrends',B:'Phase B · Aufbau der Ursache',C:'Phase C · Spring / Test',D:'Phase D · Jump-Bewegung',E:'Phase E · Nach BUEC oder relativem Zeitlimit'};
-  let h=window.HolyStocksFeedback.detail(D.feedback)+referenceH(D.reference)+rejectedH(D.rejected)+overview(D.ov)+verdictH(D.verdict)+customH(D.cst)+(D.box?'':`<p class="note" style="margin:10px 0">${D.feedback?'Keine gültige Scannerzeichnung':'Keine Zeichnung'}: ${esc(deTxt(D.status))}</p>`)+`<h3>Punkte · erreicht / möglich</h3><div style="display:flex;align-items:center;gap:14px">${rose(D.phases,D.avg,130,{labels:true})}<div><div style="font-size:34px;font-weight:300;line-height:1">${scoreText(D)}</div>
+  let h=backtestTradeH(D.backtestTrade)+window.HolyStocksFeedback.detail(D.feedback)+referenceH(D.reference)+rejectedH(D.rejected)+overview(D.ov)+verdictH(D.verdict)+customH(D.cst)+(D.box?'':`<p class="note" style="margin:10px 0">${D.feedback?'Keine gültige Scannerzeichnung':'Keine Zeichnung'}: ${esc(deTxt(D.status))}</p>`)+`<h3>Punkte · erreicht / möglich</h3><div style="display:flex;align-items:center;gap:14px">${rose(D.phases,D.avg,130,{labels:true})}<div><div style="font-size:34px;font-weight:300;line-height:1">${scoreText(D)}</div>
     <div style="margin-top:8px">Konfidenz <span style="letter-spacing:1px">${dots(D.conf)}</span></div></div></div>
     <div class="note" style="margin-top:6px">Blatt größer als der gestrichelte Ring = Phase besser als der Board-Durchschnitt.</div>
     <div class="flagline">${D.funnel.true?`<span class="chip on">${funnelIcon(10).replace(G.w,'#000')} echter Trichter</span>`:''}${D.spring?`<span class="chip">${esc(D.spring.status==='shakeout'?'Shakeout':D.spring.longVariant?'Spring / Shakeout':D.spring.kind)}${D.spring.ok&&!D.spring.conf?'?':''}${D.spring.status==='shakeout'?' · Pflicht-Test fehlt oder ungültig':''}</span>`:(D.box?'<span class="chip">kein Spring</span>':'')}</div>`;
@@ -441,8 +415,8 @@ function renderSide(D){
   const rji=$('#side .rj-i'); if(rji) rji.onclick=e=>{e.stopPropagation(); const x=$('#side .rj-x'); if(x) x.hidden=!x.hidden;};
   $$('#side .row .info').forEach(b=>b.onclick=e=>{e.stopPropagation(); const d=b.closest('.row').parentNode.querySelector(`.rinfo[data-for="${CSS.escape(b.dataset.r)}"]`); if(d) d.hidden=!d.hidden;});
 }
-function closeDetail(){ $('#detail').hidden=true; document.body.style.overflow=''; curId=null; charts.forEach(c=>c.remove()); charts=[]; history.replaceState(null,'',location.pathname+(cur==='scatter'?'#streu':cur==='tests'?'#tests':cur==='custom'?'#custom':cur==='rejected'?'#rejected':'')); }
-function step(d){const o=String(curId).startsWith('f:')?(B.feedback?.cases||[]).map(c=>c.id):isCustom(curId)?(B.custom||[]).filter(c=>c.f).map(c=>c.id):isTest(curId)?(B.tests||[]).filter(c=>c.f).map(c=>c.id):isRej(curId)?(B.rejected||[]).map(c=>c.id):order; const k=o.indexOf(curId); const j=o[k+d]; if(j) openDetail(j);}
+function closeDetail(updateHash=true){ $('#detail').hidden=true; document.body.style.overflow=''; curId=null; charts.forEach(c=>c.remove()); charts=[]; if(updateHash) history.replaceState(null,'',location.pathname+panelHash(cur)); }
+function step(d){const o=isBacktest(curId)?backtestCards().map(c=>c.id):String(curId).startsWith('f:')?(B.feedback?.cases||[]).map(c=>c.id):isCustom(curId)?(B.custom||[]).filter(c=>c.f).map(c=>c.id):isTest(curId)?(B.tests||[]).filter(c=>c.f).map(c=>c.id):isRej(curId)?(B.rejected||[]).map(c=>c.id):order; const k=o.indexOf(curId); const j=o[k+d]; if(j) openDetail(j);}
 
 /* ---------- Legende ---------- */
 const CCOLS=['Watch','Positionen','Postmortem Fail','Postmortem Success'], CGRP={watch:'Watch',position:'Position',pm_fail:'Postmortem',pm_success:'Postmortem'};
@@ -490,16 +464,111 @@ function renderLegend(){
   <div>Mittellinie</div><div>Dunkel gestrichelt: Achse der Spanne, alternativer enger Stopp. Der klassische Stopp steht nur im Handelsplan.</div>
   <div>Phasenleiste</div><div>Unten im Kurschart: A, B, C, D (Jump-Bewegung) und E (nach BUEC oder relativem Zeitlimit).</div></div>
   <h2>Unterfenster</h2><p>Volumen, Weis-Wellen (dieselben Wellen wie in der Bewertung: Volumen je Welle kumuliert, Richtungswechsel nach 1,5 × Median-ATR der Spanne Gegenbewegung, die Welle endet an ihrem Wendepunkt), Harmonie (log(Kerzenkörper/mittlerer Körper ÷ Volumen/Median), nur Körper ohne Dochte, ±3 begrenzt; positiv = Rutschen, negativ = Schieben; im Trend werden Gegenkerzen ausgeblendet), Wikipedia-Aufrufe (Wikimedia-API, Artikel in der Sprache des Emittenten, falls gefunden) und Markttrend (Heimatindex mit SMA 50/200). Alle teilen die Zeitachse; jedes Fenster hat eine Datumsachse, das Datum der Kerze unter dem Mauszeiger steht oben im Kurschart.</p>
-  <h2>Streudiagramm</h2><p>x = Fortschritt durch die Phasen (innerhalb einer Phase stetig geschätzt), y = Erreichte Punkte. Rechts oben ist es am heißesten. Die Schwänze zeigen, wo die Aktie an den letzten zehn Freitagen stand (Scanner mit damals verfügbaren Daten neu gerechnet). Ring = echter Trichter. Ein Spring ist nicht Pflicht; ohne gültigen Spring gibt es keine Spring-Punkte. Innerhalb jeder Board-Spalte zählt das Verhältnis erreichter zu möglichen Punkten absteigend; die Anzeige zeigt beide absoluten Werte. Einen zusätzlichen Vorrang für Karten mit Spring gibt es nicht.</p>
+  <h2>Prüfcharts</h2><p><a class="legend-link" href="#tests" id="reviewLink">Test-Stocks und fachliche Rückmeldungen</a></p>
   <h2>Daten</h2><p>Kurse bis ${dDE(B.asof)} (gemeinsamer Kursdaten-Ordner, Tagesbars). ${B.n_scanned} Strukturen bewertet, ${B.cards.length} auf dem Board. Erstellt ${dDE(B.built)}. Testlauf, keine Anlageberatung.</p>${(B.review||[]).length?`<p>Beurteilte Fälle, die gerade nicht auf dem Board stehen (nur Detailansicht): ${B.review.map(c=>`<a href="#s=${encodeURIComponent(c.id)}" data-rev="${c.id}" style="color:#bdbdbd">${c.sym} (${c.rej?'verworfen':scoreText(c)})</a>`).join(', ')}</p>`:''}<p>Charts: <a href="https://www.tradingview.com/lightweight-charts/" style="color:#bdbdbd">TradingView Lightweight Charts</a> (Apache 2.0).</p>`;
+  $('#reviewLink').onclick=e=>{e.preventDefault();show('tests');};
   $$('#pLegend [data-rev]').forEach(a=>a.onclick=e=>{e.preventDefault();openDetail(a.dataset.rev);});
+}
+
+/* ---------- Backtest ---------- */
+let backtestData=null, backtestRequest=null, backtestRun=null;
+const isBacktest=id=>String(id).startsWith('bt:');
+const formatR=r=>r==null?'–':(r>0?'+':'')+nf(r,2)+' R';
+const tradeStatuses={
+  erfolgreich:'Mit Gewinn geschlossen', gescheitert:'Mit Verlust oder ohne Gewinn geschlossen',
+  offen:'Offen', einstieg_entfallen:'Einstieg entfallen', einstieg_ausstehend:'Einstieg ausstehend'
+};
+function loadBacktests(){
+  if(backtestData) return Promise.resolve(backtestData);
+  if(!backtestRequest) backtestRequest=fetch('data/backtests.json',{cache:'no-cache'}).then(response=>{
+    if(!response.ok) throw new Error('Backtests konnten nicht geladen werden.');
+    return response.json();
+  }).then(data=>backtestData=data.runs).finally(()=>{backtestRequest=null;});
+  return backtestRequest;
+}
+function backtestCards(){
+  const run=(backtestData||[]).find(item=>String(item.id)===String(backtestRun));
+  return run?[...new Map(run.examples.flatMap(group=>group.cards).map(card=>[card.id,card])).values()]:[];
+}
+function drawBacktestCards(){
+  const cards=new Map(backtestCards().map(card=>[card.id,card]));
+  $$('#pBacktest .card').forEach(button=>{
+    const card=cards.get(button.dataset.id);
+    if(card?.m) mini(button.querySelector('canvas'),card.m);
+  });
+}
+function backtestTradeH(trade){
+  if(!trade) return '';
+  const price=(value,date)=>value==null?'–':pf(value)+' · '+dDE(date);
+  return `<h3>Simulierter Trade</h3><dl class="kv">
+    <dt>Status</dt><dd>${esc(tradeStatuses[trade.status])}</dd>
+    <dt>Einstieg</dt><dd>${price(trade.entry,trade.entryDate)}</dd>
+    <dt>Anfangsstopp</dt><dd>${pf(trade.initialStop)}</dd>
+    <dt>Ausstieg</dt><dd>${price(trade.exit,trade.exitDate)}</dd>
+    <dt>Ergebnis vor Kosten</dt><dd>${formatR(trade.r)}</dd></dl>`;
+}
+function backtestSummary(run){
+  const rows=[
+    ['Signale oder Vergleichseinstiege','total',r=>nf(r,0)],
+    ['Geschlossene Trades','closed',r=>nf(r,0)],
+    ...Object.entries(tradeStatuses).map(([key,label])=>[label,key,r=>nf(r,0)]),
+    ['Trefferquote (geschlossene Trades)','winRate',r=>r==null?'–':nf(r)+' %'],
+    ['Durchschnitt brutto','meanR',formatR],
+    ['Median brutto','medianR',formatR],
+    ['Mediane Haltedauer (Handelskerzen)','medianBars',r=>nf(r)],
+  ];
+  return `<table class="bt-table"><thead><tr><th scope="col">Kennzahl</th>${run.results.map(r=>`<th scope="col">${esc(r.label)}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map(([label,key,format])=>`<tr><th scope="row">${esc(label)}</th>${run.results.map(r=>`<td>${format(r[key])}</td>`).join('')}</tr>`).join('')}</tbody></table>
+    ${run.pairedCount?`<p>Im direkten Vergleich lag der JAC im Mittel ${formatR(run.pairedMeanR)} gegenüber seinen zugeordneten Zufallseinstiegen. ${nf(run.pairedWins,0)} von ${nf(run.pairedCount,0)} JAC-Trades lagen über ihrer Vergleichsgruppe.</p>`:''}`;
+}
+async function renderBacktest(){
+  const panel=$('#pBacktest');
+  if(!backtestData) panel.textContent='Backtests werden geladen …';
+  let runs;
+  try{runs=await loadBacktests();}catch(e){if(cur==='backtest') panel.textContent='Backtests konnten nicht geladen werden.';return;}
+  if(cur!=='backtest') return;
+  const run=runs.find(item=>String(item.id)===String(backtestRun));
+  if(!run){
+    panel.innerHTML=`<h1>Backtests</h1>${runs.length?`<ul class="bt-runs">${runs.map(item=>`<li><a href="#backtest=${item.id}" data-run="${item.id}"><strong>${esc(item.title)}</strong><span>${esc(item.question)}</span><small>${dDE(item.start)} bis ${dDE(item.end)} · ${nf(item.symbols,0)} Aktien</small></a></li>`).join('')}</ul>`:'<p>Es sind noch keine Backtests veröffentlicht.</p>'}`;
+    panel.querySelectorAll('[data-run]').forEach(link=>link.onclick=e=>{e.preventDefault();show('backtest',link.dataset.run);});
+    return;
+  }
+  panel.innerHTML=`<a class="legend-link" id="allBacktests" href="#backtest">← Alle Backtests</a>
+    <h1>${esc(run.title)}</h1>
+    <p class="note">${dDE(run.start)} bis ${dDE(run.end)} · ${nf(run.symbols,0)} Aktien</p>
+    <h2>Fragestellung</h2><p>${esc(run.question)}</p><p class="note">${esc(run.method)}</p>
+    <h2>Ergebnis</h2>${backtestSummary(run)}
+    ${run.examples.map((group,i)=>`<section class="bt-examples"><h2>${esc(group.title)}</h2><div class="bt-grid" data-group="${i}"></div></section>`).join('')}`;
+  $('#allBacktests').onclick=e=>{e.preventDefault();show('backtest');};
+  run.examples.forEach((group,i)=>{
+    const grid=panel.querySelector(`[data-group="${i}"]`);
+    group.cards.forEach((card,k)=>grid.appendChild(structureCard(card,k)));
+  });
+  requestAnimationFrame(drawBacktestCards);
 }
 
 /* ---------- Navigation ---------- */
 let cur='board';
-function show(p){cur=p; ['Board','Rejected','Scatter','Tests','Custom','Legend'].forEach(k=>{$('#p'+k).hidden=k.toLowerCase()!==p; const t=$('#tab'+k); t.classList.toggle('on',k.toLowerCase()===p); t.setAttribute('aria-selected',k.toLowerCase()===p);});
-  if(p==='scatter') renderScatter(); if(p==='board') renderBoard(); if(p==='legend') renderLegend(); if(p==='tests') renderTests(); if(p==='custom') renderCustom(); if(p==='rejected') renderRejected();
-  if(!curId) history.replaceState(null,'',location.pathname+(p==='scatter'?'#streu':p==='legend'?'#legende':p==='tests'?'#tests':p==='custom'?'#custom':p==='rejected'?'#rejected':''));}
+function panelHash(p){
+  if(p==='backtest') return backtestRun==null?'#backtest':'#backtest='+encodeURIComponent(backtestRun);
+  return {legend:'#legende',tests:'#tests',custom:'#custom',rejected:'#rejected'}[p]||'';
+}
+function show(p,run=null){
+  cur=p;
+  if(p==='backtest') backtestRun=run;
+  ['Board','Rejected','Backtest','Custom','Legend','Tests'].forEach(k=>{
+    $('#p'+k).hidden=k.toLowerCase()!==p;
+    const t=$('#tab'+k);
+    if(t){const on=k.toLowerCase()===p||(k==='Legend'&&p==='tests');t.classList.toggle('on',on);t.setAttribute('aria-selected',on);}
+  });
+  if(p==='backtest') renderBacktest();
+  if(p==='board') renderBoard();
+  if(p==='legend') renderLegend();
+  if(p==='tests') renderTests();
+  if(p==='custom') renderCustom();
+  if(p==='rejected') renderRejected();
+  if(!curId) history.replaceState(null,'',location.pathname+panelHash(p));
+}
 async function init(){
   B=await (await fetch('data/board.json',{cache:'no-cache'})).json();
   try{B.custom=(await (await fetch('data/custom.json',{cache:'no-cache'})).json()).cards||[];}catch(e){B.custom=[];}
@@ -509,18 +578,26 @@ async function init(){
   for(const p of 'ABCDE'){const v=B.cards.map(c=>c.ph[p]).filter(x=>x!=null), m=v.reduce((a,b)=>a+b,0)/v.length; SD[p]=v.length?Math.max(3,Math.sqrt(v.reduce((a,b)=>a+(b-m)**2,0)/v.length)):8;}
   order=B.cards.map(c=>c.id);
   $('#sub').textContent=`Wyckoff-Akkumulationen · Scanner v5 · Testlauf · Daten bis ${dDE(B.asof)}`;
-  $('#tabBoard').onclick=()=>show('board'); $('#tabScatter').onclick=()=>show('scatter'); $('#tabLegend').onclick=()=>show('legend'); $('#tabTests').onclick=()=>show('tests'); $('#tabCustom').onclick=()=>show('custom'); $('#tabRejected').onclick=()=>show('rejected');
-  $('#tailToggle').onchange=renderScatter; $('#tipToggle').onchange=e=>{tips=e.target.checked; tip();};
+  $('#tabBoard').onclick=()=>show('board'); $('#tabBacktest').onclick=()=>show('backtest'); $('#tabLegend').onclick=()=>show('legend'); $('#tabCustom').onclick=()=>show('custom'); $('#tabRejected').onclick=()=>show('rejected');
+  $('#tipToggle').onchange=e=>{tips=e.target.checked; tip();};
   $('#dFeedback').onclick=()=>$('#side').scrollIntoView({behavior:'smooth',block:'start'});
-  $('#dBack').onclick=closeDetail; $('#dPrev').onclick=()=>step(-1); $('#dNext').onclick=()=>step(1);
+  $('#dBack').onclick=()=>closeDetail(); $('#dPrev').onclick=()=>step(-1); $('#dNext').onclick=()=>step(1);
   addEventListener('keydown',e=>{if($('#detail').hidden)return; if(e.key==='Escape')closeDetail(); if(e.key==='ArrowRight')step(1); if(e.key==='ArrowLeft')step(-1);});
-  let rt; addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(cur==='board')$$('#pBoard .card').forEach(b=>mini(b.querySelector('canvas'),B.cards.find(c=>c.id===b.dataset.id).m)); if(cur==='rejected')renderRejected();},150);});
+  let rt; addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(cur==='board')$$('#pBoard .card').forEach(b=>mini(b.querySelector('canvas'),B.cards.find(c=>c.id===b.dataset.id).m)); if(cur==='rejected')renderRejected(); if(cur==='backtest')drawBacktestCards();},150);});
   addEventListener('hashchange',()=>{
     const target=decodeURIComponent(location.hash.slice(1));
-    if(target.startsWith('s=')&&target.slice(2)!==curId&&cardOf(target.slice(2)))openDetail(target.slice(2));
+    if(target.startsWith('s=')&&target.slice(2)!==curId)openDetail(target.slice(2));
+    else if(target==='backtest'||target.startsWith('backtest=')){
+      if(curId)closeDetail(false);
+      show('backtest',target.split('=')[1]??null);
+    }
   });
   const h=decodeURIComponent(location.hash.slice(1));
-  show(h==='streu'?'scatter':h==='legende'?'legend':h==='tests'||h.startsWith('s=t:')||h.startsWith('s=f:')?'tests':h==='custom'||h.startsWith('s=c:')?'custom':h==='rejected'||h.startsWith('s=r:')?'rejected':'board');
-  if(h.startsWith('s=')&&cardOf(h.slice(2))) openDetail(h.slice(2));
+  if(h==='backtest'||h.startsWith('backtest=')||h.startsWith('s=bt:')){
+    show('backtest',h.startsWith('s=bt:')?h.split(':')[1]:h.split('=')[1]??null);
+  }else{
+    show(h==='legende'?'legend':h==='tests'||h.startsWith('s=t:')||h.startsWith('s=f:')?'tests':h==='custom'||h.startsWith('s=c:')?'custom':h==='rejected'||h.startsWith('s=r:')?'rejected':'board');
+  }
+  if(h.startsWith('s=')) openDetail(h.slice(2));
 }
 init();
