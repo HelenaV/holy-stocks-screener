@@ -508,6 +508,8 @@ function drawBacktestTrade(chart,candles,dates,trade){
     if(dates.includes(buec.buec_low)) markers.push({time:buec.buec_low,position:'belowBar',color:G.l,shape:'circle',text:'BUEC-Tief'});
     if(dates.includes(buec.trigger_date)) markers.push({time:buec.trigger_date,position:'aboveBar',color:G.l,shape:'circle',text:'BUEC-Signal'});
   }
+  const retry=trade.retrySignal;
+  if(retry&&dates.includes(retry.trigger_date)) markers.push({time:retry.trigger_date,position:'aboveBar',color:G.l,shape:'circle',text:'JAC · Versuch '+retry.attempt});
   if(start>=0&&end>=start){
     markers.push({time:dates[start],position:'belowBar',color:G.w,shape:'arrowUp',text:'Einstieg '+pf(trade.entry)});
     if(trade.exitDate) markers.push({time:dates[end],position:'aboveBar',color:G.w,shape:'arrowDown',text:'Ausstieg '+formatR(trade.r)});
@@ -533,6 +535,7 @@ function backtestTradeH(trade){
   return `<h3>Simulierter Trade</h3><dl class="kv">
     <dt>Status</dt><dd>${esc(tradeStatuses[trade.status])}</dd>
     ${buec?`<dt>BUEC-Abschluss</dt><dd>${dDE(buec.buec_end)}</dd><dt>Auslösekerze</dt><dd>${dDE(buec.trigger_date)}${buec.previous_atr>0?' · '+nf(buec.green_body/buec.previous_atr,2)+' ATR':''}</dd>`:''}
+    ${trade.retrySignal?`<dt>JAC-Versuch</dt><dd>${nf(trade.retrySignal.attempt,0)} · ${dDE(trade.retrySignal.trigger_date)}</dd>`:''}
     <dt>Einstieg</dt><dd>${price(trade.entry,trade.entryDate)}</dd>
     <dt>Anfangsstopp</dt><dd>${pf(trade.initialStop)}</dd>
     <dt>Anfangsrisiko (1 R)</dt><dd>${pf(trade.initialRisk)}</dd>
@@ -542,10 +545,12 @@ function backtestTradeH(trade){
 function backtestSummary(run){
   const rows=[
     ['Signale oder Vergleichseinstiege','total',r=>nf(r,0)],
-    ['Geschlossene Trades','closed',r=>nf(r,0)],
+    ['Akkumulationen mit Position','tradedStructures',r=>nf(r,0)],
+    ['Geschlossene Positionen','closed',r=>nf(r,0)],
     ...Object.entries(tradeStatuses).map(([key,label])=>[label,key,r=>nf(r,0)]),
     ['Trefferquote (geschlossene Trades)','winRate',r=>r==null?'–':nf(r)+' %'],
-    ['Durchschnitt brutto','meanR',formatR],
+    ['Ø R je geschlossener Position','meanR',formatR],
+    ...(run.multiEntry?[['Ø realisiertes R je gehandelter Akkumulation','meanStructureR',formatR]]:[]),
     ['Median brutto','medianR',formatR],
     ['Mediane Haltedauer (Handelskerzen)','medianBars',r=>nf(r)],
   ];
@@ -553,6 +558,19 @@ function backtestSummary(run){
     <tbody>${rows.map(([label,key,format])=>`<tr><th scope="row">${esc(label)}</th>${run.results.map(r=>`<td>${format(r[key])}</td>`).join('')}</tr>`).join('')}</tbody></table>
     ${run.resultNote?`<p>${esc(run.resultNote)}</p>`:''}
     ${run.pairedCount?`<p>Im direkten Vergleich lag der JAC im Mittel ${formatR(run.pairedMeanR)} gegenüber seinen zugeordneten Zufallseinstiegen. ${nf(run.pairedWins,0)} von ${nf(run.pairedCount,0)} JAC-Trades lagen über ihrer Vergleichsgruppe.</p>`:''}`;
+}
+function backtestOverviewStats(run){
+  const stats=run.results[0];
+  if(!stats) return '';
+  const metrics=[
+    ['Ø R je geschlossener Position',formatR(stats.meanR)],
+    ...(run.multiEntry?[['Ø realisiertes R je Akkumulation',formatR(stats.meanStructureR)]]:[]),
+    ['Akkumulationen mit Position',nf(stats.tradedStructures,0)],
+    ['Positionen mit Gewinn',nf(stats.erfolgreich,0)],
+    ['Positionen ohne Gewinn',nf(stats.gescheitert,0)],
+    ['Positionen noch offen',nf(stats.offen,0)],
+  ];
+  return `<dl class="bt-overview-stats">${metrics.map(([label,value])=>`<div><dt>${label}</dt><dd>${value}</dd></div>`).join('')}</dl>`;
 }
 async function renderBacktest(){
   const panel=$('#pBacktest');
@@ -562,7 +580,7 @@ async function renderBacktest(){
   if(cur!=='backtest') return;
   const run=runs.find(item=>String(item.id)===String(backtestRun));
   if(!run){
-    panel.innerHTML=`<h1>Backtests</h1>${runs.length?`<ul class="bt-runs">${runs.map(item=>`<li><a href="#backtest=${item.id}" data-run="${item.id}"><strong>${esc(item.title)}</strong><span>${esc(item.question)}</span><small>${dDE(item.start)} bis ${dDE(item.end)} · ${nf(item.symbols,0)} Aktien</small></a></li>`).join('')}</ul>`:'<p>Es sind noch keine Backtests veröffentlicht.</p>'}`;
+    panel.innerHTML=`<h1>Backtests</h1>${runs.length?`<ul class="bt-runs">${runs.map(item=>`<li><a href="#backtest=${item.id}" data-run="${item.id}"><strong>${esc(item.title)}</strong><span>${esc(item.question)}</span><small>${dDE(item.start)} bis ${dDE(item.end)} · ${nf(item.symbols,0)} Aktien</small>${backtestOverviewStats(item)}</a></li>`).join('')}</ul>`:'<p>Es sind noch keine Backtests veröffentlicht.</p>'}`;
     panel.querySelectorAll('[data-run]').forEach(link=>link.onclick=e=>{e.preventDefault();show('backtest',link.dataset.run);});
     return;
   }

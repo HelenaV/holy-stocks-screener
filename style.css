@@ -51,6 +51,10 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .bt-runs a:hover,.bt-runs a:focus-visible{border-color:var(--g3)}
 .bt-runs span{color:var(--g2)}
 .bt-runs small{color:var(--g3)}
+.bt-overview-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:8px;margin:6px 0 0}
+.bt-overview-stats>div{display:flex;flex-direction:column;justify-content:space-between;gap:4px;padding:7px;border-top:1px solid var(--line)}
+.bt-overview-stats dt{font-size:11px;color:var(--g3)}
+.bt-overview-stats dd{margin:0;font-weight:600;font-variant-numeric:tabular-nums}
 .bt-table{border-collapse:collapse;width:100%;max-width:760px;background:var(--p1)}
 .bt-table th,.bt-table td{border-bottom:1px solid var(--line);padding:7px 10px;text-align:right}
 .bt-table th:first-child{text-align:left}
