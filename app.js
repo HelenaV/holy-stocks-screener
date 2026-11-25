@@ -252,7 +252,7 @@ async function openDetail(id){
   {const P=D.cst||{}; [[P.entry_price,0],[P.stop,2],[P.target,1]].forEach(([p,ls])=>{if(p!=null&&isFinite(p)) cs.createPriceLine({price:+p,color:G.m,lineWidth:1,lineStyle:ls,axisLabelVisible:false,title:''});});}
   {const md=D.verdict?D.verdict.date:(D.cst&&D.cst.added?D.cst.added:null); if(md){const k=T.findIndex(t=>t>md); const tt=k<0?T[n-1]:T[k];
     cs.setMarkers([{time:tt,position:'aboveBar',color:G.w,shape:'arrowDown',text:(D.verdict?'Urteil ':'hinzugefügt ')+dDE(md).slice(0,6)}]);}}
-  $('#pl0').innerHTML=`Kurs <b id="hov" class="hov"></b><small>hohl = steigend · grau gefüllt = fallend · Ereignisse mit Bewertung ●○ (0–5), weiß hinterlegt = Top, ✦ = außergewöhnlich${D.backtestTrade?' · gestrichelt = aktiver Backtest-Stopp':''}</small>`;
+  $('#pl0').innerHTML=`Kurs <b id="hov" class="hov"></b><small>hohl = steigend · grau gefüllt = fallend · Ereignisse mit Bewertung ●○ (0–5), weiß hinterlegt = Top, ✦ = außergewöhnlich${D.backtestTrade?.trailingOnClose?' · Anfangsstopp intraday, nachgezogene Linie per Schlusskurs':D.backtestTrade?' · gestrichelt = aktiver Backtest-Stopp':''}</small>`;
   // Volumen (Evelyn 2026-11-03): axis capped at 4× median of the visible bars; cut bars get a tip and the true multiple. Trend is the OLS line from the start of phase A to the end of phase B.
   const c1=mk(1,false,{rightPriceScale:{borderColor:'#222',minimumWidth:78,scaleMargins:{top:.18,bottom:.1}}});
   const vs=c1.addHistogramSeries({priceFormat:{type:'volume'},priceLineVisible:false,lastValueVisible:false});
