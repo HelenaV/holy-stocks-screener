@@ -534,7 +534,7 @@ function backtestTradeH(trade){
   const price=(value,date)=>value==null?'–':pf(value)+' · '+dDE(date);
   return `<h3>Simulierter Trade</h3><dl class="kv">
     <dt>Status</dt><dd>${esc(tradeStatuses[trade.status])}</dd>
-    ${buec?`<dt>BUEC-Abschluss</dt><dd>${dDE(buec.buec_end)}</dd><dt>Auslösekerze</dt><dd>${dDE(buec.trigger_date)}${buec.previous_atr>0?' · '+nf(buec.green_body/buec.previous_atr,2)+' ATR':''}</dd>`:''}
+    ${buec?`<dt>BUEC-Abschluss</dt><dd>${dDE(buec.buec_end)}</dd><dt>Auslösekerze</dt><dd>${dDE(buec.trigger_date)}${buec.previous_atr>0?' · '+nf(buec.green_body/buec.previous_atr,2)+' ATR':buec.candle_low!=null?' · Tief '+pf(buec.candle_low)+' > Creek '+pf(buec.creek):''}</dd>`:''}
     ${trade.retrySignal?`<dt>JAC-Versuch</dt><dd>${nf(trade.retrySignal.attempt,0)} · ${dDE(trade.retrySignal.trigger_date)}</dd>`:''}
     <dt>Einstieg</dt><dd>${price(trade.entry,trade.entryDate)}</dd>
     <dt>Anfangsstopp</dt><dd>${pf(trade.initialStop)}</dd>
