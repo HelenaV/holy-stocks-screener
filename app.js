@@ -238,7 +238,7 @@ async function openDetail(id){
   D.backtestTrade=c.trade;
   charts.forEach(ch=>ch.remove()); charts=[];
   $('#dSym').textContent=D.sym; $('#dName').textContent=D.name;
-  $('#dMeta').innerHTML=`${D.reference?'<span>Prüfstand '+dDE(D.reference.date)+'</span>':''}<span>${isBacktest(id)?'Backtest · '+formatR(c.trade.r):isRej(id)?'Rejected · '+esc(D.colName)+' · verworfen':isTest(id)?(isCustom(id)?'Custom · '+esc(CGRP[(D.cst||{}).gruppe]||deTxt((D.cst||{}).gruppe)||'')+' · ':'Test-Stock · ')+esc(D.colName)+(c.rej?' · '+esc(deTxt(c.rej)):''):D.colName+(B.cards.some(z=>z.id===id)?'':(c.rej?' · nicht auf dem Board – '+esc(deTxt(c.rej)):' · nicht auf dem Board (beurteilter Fall)'))}</span><span>${isBacktest(id)?'Signal am '+dDE(D.asof)+' · Chart bis '+dDE(D.t[D.t.length-1]):'Daten bis '+dDE(D.asof)}</span><span class="big">${scoreText(D)}</span>`;
+  $('#dMeta').innerHTML=`${D.reference?'<span>Prüfstand '+dDE(D.reference.date)+'</span>':''}<span>${isBacktest(id)?'Backtest · '+formatR(c.trade.r):isRej(id)?'Rejected · '+esc(D.colName)+' · verworfen':isTest(id)?(isCustom(id)?'Custom · '+esc(CGRP[(D.cst||{}).gruppe]||deTxt((D.cst||{}).gruppe)||'')+' · ':'Test-Stock · ')+esc(D.colName)+(c.rej?' · '+esc(deTxt(c.rej)):''):D.colName+(B.cards.some(z=>z.id===id)?'':(c.rej?' · nicht auf dem Board – '+esc(deTxt(c.rej)):' · nicht auf dem Board (beurteilter Fall)'))}</span><span>${isBacktest(id)?(c.trade.buecSignal?'JAC am ':'Signal am ')+dDE(D.asof)+' · Chart bis '+dDE(D.t[D.t.length-1]):'Daten bis '+dDE(D.asof)}</span><span class="big">${scoreText(D)}</span>`;
   const LW=window.LightweightCharts, T=D.t, n=T.length;
   const mk=(k,dateLabel=false,extra={})=>{const ch=LW.createChart($('#c'+k),Object.assign(baseOpts(dateLabel),extra)); charts.push(ch); return ch;};
   // Kurs
@@ -499,13 +499,21 @@ function drawBacktestCards(){
   });
 }
 function drawBacktestTrade(chart,candles,dates,trade){
-  if(!trade?.entryDate) return;
+  if(!trade) return;
   const start=dates.indexOf(trade.entryDate);
   const end=trade.exitDate?dates.indexOf(trade.exitDate):dates.length-1;
+  const markers=[];
+  const buec=trade.buecSignal;
+  if(buec){
+    if(dates.includes(buec.buec_low)) markers.push({time:buec.buec_low,position:'belowBar',color:G.l,shape:'circle',text:'BUEC-Tief'});
+    if(dates.includes(buec.trigger_date)) markers.push({time:buec.trigger_date,position:'aboveBar',color:G.l,shape:'circle',text:'BUEC-Signal'});
+  }
+  if(start>=0&&end>=start){
+    markers.push({time:dates[start],position:'belowBar',color:G.w,shape:'arrowUp',text:'Einstieg '+pf(trade.entry)});
+    if(trade.exitDate) markers.push({time:dates[end],position:'aboveBar',color:G.w,shape:'arrowDown',text:'Ausstieg '+formatR(trade.r)});
+  }
+  if(markers.length) candles.setMarkers(markers.sort((a,b)=>a.time.localeCompare(b.time)));
   if(start<0||end<start) return;
-  const markers=[{time:dates[start],position:'belowBar',color:G.w,shape:'arrowUp',text:'Einstieg '+pf(trade.entry)}];
-  if(trade.exitDate) markers.push({time:dates[end],position:'aboveBar',color:G.w,shape:'arrowDown',text:'Ausstieg '+formatR(trade.r)});
-  candles.setMarkers(markers);
   const changes=new Map();
   for(const {confirmed,stop} of trade.stopUpdates||[]){
     const i=dates.indexOf(confirmed);
@@ -520,9 +528,11 @@ function drawBacktestTrade(chart,candles,dates,trade){
 }
 function backtestTradeH(trade){
   if(!trade) return '';
+  const buec=trade.buecSignal;
   const price=(value,date)=>value==null?'–':pf(value)+' · '+dDE(date);
   return `<h3>Simulierter Trade</h3><dl class="kv">
     <dt>Status</dt><dd>${esc(tradeStatuses[trade.status])}</dd>
+    ${buec?`<dt>BUEC-Abschluss</dt><dd>${dDE(buec.buec_end)}</dd><dt>Auslösekerze</dt><dd>${dDE(buec.trigger_date)}${buec.previous_atr>0?' · '+nf(buec.green_body/buec.previous_atr,2)+' ATR':''}</dd>`:''}
     <dt>Einstieg</dt><dd>${price(trade.entry,trade.entryDate)}</dd>
     <dt>Anfangsstopp</dt><dd>${pf(trade.initialStop)}</dd>
     <dt>Anfangsrisiko (1 R)</dt><dd>${pf(trade.initialRisk)}</dd>
@@ -541,6 +551,7 @@ function backtestSummary(run){
   ];
   return `<table class="bt-table"><thead><tr><th scope="col">Kennzahl</th>${run.results.map(r=>`<th scope="col">${esc(r.label)}</th>`).join('')}</tr></thead>
     <tbody>${rows.map(([label,key,format])=>`<tr><th scope="row">${esc(label)}</th>${run.results.map(r=>`<td>${format(r[key])}</td>`).join('')}</tr>`).join('')}</tbody></table>
+    ${run.resultNote?`<p>${esc(run.resultNote)}</p>`:''}
     ${run.pairedCount?`<p>Im direkten Vergleich lag der JAC im Mittel ${formatR(run.pairedMeanR)} gegenüber seinen zugeordneten Zufallseinstiegen. ${nf(run.pairedWins,0)} von ${nf(run.pairedCount,0)} JAC-Trades lagen über ihrer Vergleichsgruppe.</p>`:''}`;
 }
 async function renderBacktest(){
