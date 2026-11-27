@@ -25,13 +25,28 @@
     });
   }
 
-  function exitPrice(bars, stop, time) {
-    const last = bars.length - 1;
-    for (let day = 1; day <= Math.min(time, last); day++) {
-      const [open, low] = bars[day];
-      if (low <= stop) return Math.min(open, stop);
+  function exitPrice(bars, initialStop, time) {
+    let stop = initialStop;
+    let peak = bars[0][3], pullback = null, exitNextOpen = false;
+    for (let day = 1; day <= time && day < bars.length; day++) {
+      const [open, low, close, high] = bars[day];
+      if (exitNextOpen) return open;
+      if (open <= initialStop || low <= initialStop) return Math.min(open, initialStop);
+      if (day === time) return close;
+
+      if (stop > initialStop && close < stop) {
+        exitNextOpen = true;
+      } else if (close > peak) {
+        if (pullback !== null) stop = Math.max(stop, pullback);
+        pullback = null;
+        peak = high;
+      } else if (high > peak && pullback === null) {
+        peak = high;
+      } else {
+        pullback = pullback === null ? low : Math.min(pullback, low);
+      }
     }
-    return last >= time ? bars[time][2] : null;
+    return null;
   }
 
   function update() {
@@ -185,7 +200,7 @@
     if (data) return draw();
     if (request) return request;
     status.textContent = 'Kursverläufe werden geladen …';
-    request = fetch('data/markup.json?v=r2', {cache: 'no-cache'})
+    request = fetch('data/markup.json?v=r3', {cache: 'no-cache'})
       .then(response => {
         if (!response.ok) throw new Error('Markup data unavailable');
         return response.json();

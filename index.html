@@ -45,7 +45,7 @@
   <figure id="markupFigure" hidden>
     <div class="markup-tools">
       <div class="markup-inputs">
-        <label class="markup-stop" for="markupStop">Stopp in Range-Höhen ab Creek
+        <label class="markup-stop" for="markupStop">Anfangsstopp ab Creek (Range-Höhen)
           <input id="markupStop" type="number" lang="de" step="any" value="-1" autocomplete="off" required>
         </label>
         <label class="markup-time" for="markupTime">Zeitlimit in Handelstagen
@@ -64,7 +64,7 @@
       </dl>
     </div>
     <canvas id="markupChart" role="img" aria-label="Überlagerte Kursverläufe nach der JAC-Erkennung. Das Kästchen links zeigt die normierte Akkumulationsspanne vom SC-Tief bis zum Creek." aria-describedby="markupMethod"></canvas>
-    <figcaption id="markupMethod">Einstieg zum Schlusskurs am Tag der JAC-Erkennung. Ab Tag 1 löst das Tagestief den Stopp aus. Eröffnet der Kurs unter dem Stopp, zählt der Eröffnungskurs. Am Zeitlimit zählt der Schlusskurs, sofern der Stopp bis dahin hält. Die dargestellten Kurven sind über fünf Handelstage geglättet, die Rechnung nutzt ungeglättete Kurse. Die Y-Achse ist für große Abstände komprimiert.</figcaption>
+    <figcaption id="markupMethod">Einstieg zum Schlusskurs am Tag der JAC-Erkennung. Der Anfangsstopp greift intraday, bei einer Kurslücke zum tieferen Eröffnungskurs. Nach einem Schluss über dem vorherigen Hoch wird der Stopp auf das bestätigte Rücksetzertief angehoben. Ein späterer Schluss darunter löst den Verkauf zur nächsten Eröffnung aus. Das Zeitlimit greift zum Schlusskurs. Der erste ausgeführte Verkauf zählt. Die Kurven sind über fünf Handelstage geglättet, die Rechnung nutzt ungeglättete Kurse. Die Y-Achse ist für große Abstände komprimiert.</figcaption>
   </figure>
 </main>
 
@@ -99,7 +99,7 @@
 <script src="lwc.js?v=20261103b" defer></script>
 <script src="search.js?v=20261116-feedback2" defer></script>
 <script src="feedback.js?v=20261117-remy-approved" defer></script>
-<script src="markup.js?v=20261127-percentile" defer></script>
+<script src="markup.js?v=20261127-trailing" defer></script>
 <script src="app.js?v=20261127-markup" defer></script>
 </body>
 </html>
