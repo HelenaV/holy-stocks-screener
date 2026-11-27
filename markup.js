@@ -4,6 +4,7 @@
   const status = document.querySelector('#markupStatus');
   const stopInput = document.querySelector('#markupStop');
   const timeInput = document.querySelector('#markupTime');
+  const percentileInput = document.querySelector('#markupPercentile');
   const results = ['Mean', 'Won', 'WithoutGain', 'Open', 'Invalid'].map(
     name => document.querySelector('#markup' + name));
   const number = new Intl.NumberFormat('de-DE');
@@ -12,6 +13,7 @@
   });
   const date = new Intl.DateTimeFormat('de-DE', {dateStyle: 'medium', timeZone: 'UTC'});
   let data, request;
+  let visibleSeries = [];
 
   function smoothCloses(bars, windowSize) {
     let sum = 0;
@@ -35,13 +37,28 @@
   function update() {
     if (!data) return;
     const stop = stopInput.valueAsNumber, time = timeInput.valueAsNumber;
+    const percentile = percentileInput.valueAsNumber;
     const validStop = Number.isFinite(stop);
     const validTime = Number.isSafeInteger(time) && time >= 1;
+    const validPercentile = Number.isFinite(percentile) && percentile >= 0 && percentile <= 100;
     stopInput.setAttribute('aria-invalid', !validStop);
     timeInput.setAttribute('aria-invalid', !validTime);
+    percentileInput.setAttribute('aria-invalid', !validPercentile);
+    visibleSeries = validPercentile
+      ? data.series.filter(series => series.percentile >= percentile)
+      : [];
+    const shown = visibleSeries.length;
+    const count = shown === data.series.length ? number.format(shown) :
+      number.format(shown) + ' von ' + number.format(data.series.length);
+    const symbols = new Set(visibleSeries.map(series => series.symbol)).size;
+    const note = validPercentile ? count + ' Akkumulationen auf ' + number.format(symbols) +
+      ' Aktien · Backtest ' + data.run + ' · Kurse bis ' + date.format(new Date(data.end)) :
+      'Gib ein Perzentil von 0 bis 100 ein.';
+    if (status.textContent !== note) status.textContent = note;
     let total = 0, won = 0, withoutGain = 0, open = 0, invalid = 0;
-    if (validStop && validTime) {
-      for (const {bars} of data.series) {
+    const valid = validStop && validTime && validPercentile;
+    if (valid) {
+      for (const {bars} of visibleSeries) {
         const entry = bars[0][2];
         const risk = entry - stop;
         if (risk <= 0) {
@@ -61,7 +78,7 @@
     const closed = won + withoutGain;
     results[0].textContent = closed ? rFormat.format(total / closed) + ' R' : '—';
     [won, withoutGain, open, invalid].forEach((count, index) => {
-      results[index + 1].textContent = validStop && validTime ? number.format(count) : '—';
+      results[index + 1].textContent = valid ? number.format(count) : '—';
     });
     draw();
   }
@@ -144,7 +161,7 @@
     ctx.fillText('Handelstage seit JAC-Erkennung', (left + right) / 2, bottom + 34);
 
     ctx.strokeStyle = 'rgba(221, 222, 225, 0.18)';
-    for (const {values} of data.series) {
+    for (const {values} of visibleSeries) {
       ctx.beginPath();
       ctx.moveTo(x(0), y(values[0]));
       for (let day = 1; day < values.length; day++) ctx.lineTo(x(day), y(values[day]));
@@ -163,11 +180,12 @@
   new ResizeObserver(draw).observe(canvas);
   stopInput.addEventListener('input', update);
   timeInput.addEventListener('input', update);
+  percentileInput.addEventListener('input', update);
   async function show() {
     if (data) return draw();
     if (request) return request;
     status.textContent = 'Kursverläufe werden geladen …';
-    request = fetch('data/markup.json?v=r1', {cache: 'no-cache'})
+    request = fetch('data/markup.json?v=r2', {cache: 'no-cache'})
       .then(response => {
         if (!response.ok) throw new Error('Markup data unavailable');
         return response.json();
@@ -177,9 +195,6 @@
           series.values = smoothCloses(series.bars, result.smoothingDays);
         }
         data = result;
-        status.textContent = number.format(data.series.length) + ' Akkumulationen auf ' +
-          number.format(data.symbols) + ' Aktien · Backtest ' + data.run +
-          ' · Kurse bis ' + date.format(new Date(data.end));
         figure.hidden = false;
         update();
       })

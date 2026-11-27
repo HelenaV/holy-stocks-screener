@@ -51,6 +51,9 @@
         <label class="markup-time" for="markupTime">Zeitlimit in Handelstagen
           <input id="markupTime" type="number" min="1" step="1" value="180" autocomplete="off" required>
         </label>
+        <label for="markupPercentile">Ab Punkteperzentil
+          <input id="markupPercentile" type="number" min="0" max="100" step="any" value="0" autocomplete="off" required>
+        </label>
       </div>
       <dl class="markup-results" aria-live="polite" aria-atomic="true">
         <div><dt>Ø R je Abschluss</dt><dd id="markupMean">—</dd></div>
@@ -96,7 +99,7 @@
 <script src="lwc.js?v=20261103b" defer></script>
 <script src="search.js?v=20261116-feedback2" defer></script>
 <script src="feedback.js?v=20261117-remy-approved" defer></script>
-<script src="markup.js?v=20261127-r" defer></script>
+<script src="markup.js?v=20261127-percentile" defer></script>
 <script src="app.js?v=20261127-markup" defer></script>
 </body>
 </html>
