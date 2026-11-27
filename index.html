@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Holy Stocks Screener</title>
 <meta name="robots" content="noindex">
-<link rel="stylesheet" href="style.css?v=20261127-markup-r">
+<link rel="stylesheet" href="style.css?v=20261127-markup-toggle">
 </head>
 <body>
 <header class="top">
@@ -54,6 +54,9 @@
         <label for="markupPercentile">Ab Punkteperzentil
           <input id="markupPercentile" type="number" min="0" max="100" step="any" value="0" autocomplete="off" required>
         </label>
+        <label class="toggle" for="markupTrailing">
+          <input id="markupTrailing" type="checkbox" role="switch" checked autocomplete="off"> Stopp nachziehen
+        </label>
       </div>
       <dl class="markup-results" aria-live="polite" aria-atomic="true">
         <div><dt>Ø R je Abschluss</dt><dd id="markupMean">—</dd></div>
@@ -64,7 +67,7 @@
       </dl>
     </div>
     <canvas id="markupChart" role="img" aria-label="Überlagerte Kursverläufe nach der JAC-Erkennung. Das Kästchen links zeigt die normierte Akkumulationsspanne vom SC-Tief bis zum Creek." aria-describedby="markupMethod"></canvas>
-    <figcaption id="markupMethod">Einstieg zum Schlusskurs am Tag der JAC-Erkennung. Der Anfangsstopp greift intraday, bei einer Kurslücke zum tieferen Eröffnungskurs. Nach einem Schluss über dem vorherigen Hoch wird der Stopp auf das bestätigte Rücksetzertief angehoben. Ein späterer Schluss darunter löst den Verkauf zur nächsten Eröffnung aus. Das Zeitlimit greift zum Schlusskurs. Der erste ausgeführte Verkauf zählt. Die Kurven sind über fünf Handelstage geglättet, die Rechnung nutzt ungeglättete Kurse. Die Y-Achse ist für große Abstände komprimiert.</figcaption>
+    <figcaption id="markupMethod">Einstieg zum Schlusskurs am Tag der JAC-Erkennung. Der Anfangsstopp greift intraday, bei einer Kurslücke zum tieferen Eröffnungskurs. Ist „Stopp nachziehen“ aktiv, hebt ein Schluss über dem vorherigen Hoch den Stopp auf das bestätigte Rücksetzertief. Ein späterer Schluss darunter löst den Verkauf zur nächsten Eröffnung aus. Das Zeitlimit greift zum Schlusskurs. Der erste ausgeführte Verkauf zählt. Die Kurven sind über fünf Handelstage geglättet, die Rechnung nutzt ungeglättete Kurse. Die Y-Achse ist für große Abstände komprimiert.</figcaption>
   </figure>
 </main>
 
@@ -99,7 +102,7 @@
 <script src="lwc.js?v=20261103b" defer></script>
 <script src="search.js?v=20261116-feedback2" defer></script>
 <script src="feedback.js?v=20261117-remy-approved" defer></script>
-<script src="markup.js?v=20261127-trailing" defer></script>
+<script src="markup.js?v=20261127-trailing-toggle" defer></script>
 <script src="app.js?v=20261127-markup" defer></script>
 </body>
 </html>

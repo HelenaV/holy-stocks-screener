@@ -5,6 +5,7 @@
   const stopInput = document.querySelector('#markupStop');
   const timeInput = document.querySelector('#markupTime');
   const percentileInput = document.querySelector('#markupPercentile');
+  const trailingInput = document.querySelector('#markupTrailing');
   const results = ['Mean', 'Won', 'WithoutGain', 'Open', 'Invalid'].map(
     name => document.querySelector('#markup' + name));
   const number = new Intl.NumberFormat('de-DE');
@@ -25,7 +26,7 @@
     });
   }
 
-  function exitPrice(bars, initialStop, time) {
+  function exitPrice(bars, initialStop, time, useTrailingStop) {
     let stop = initialStop;
     let peak = bars[0][3], pullback = null, exitNextOpen = false;
     for (let day = 1; day <= time && day < bars.length; day++) {
@@ -33,6 +34,7 @@
       if (exitNextOpen) return open;
       if (open <= initialStop || low <= initialStop) return Math.min(open, initialStop);
       if (day === time) return close;
+      if (!useTrailingStop) continue;
 
       if (stop > initialStop && close < stop) {
         exitNextOpen = true;
@@ -53,6 +55,7 @@
     if (!data) return;
     const stop = stopInput.valueAsNumber, time = timeInput.valueAsNumber;
     const percentile = percentileInput.valueAsNumber;
+    const useTrailingStop = trailingInput.checked;
     const validStop = Number.isFinite(stop);
     const validTime = Number.isSafeInteger(time) && time >= 1;
     const validPercentile = Number.isFinite(percentile) && percentile >= 0 && percentile <= 100;
@@ -80,7 +83,7 @@
           invalid++;
           continue;
         }
-        const exit = exitPrice(bars, stop, time);
+        const exit = exitPrice(bars, stop, time, useTrailingStop);
         if (exit === null) {
           open++;
           continue;
@@ -196,6 +199,7 @@
   stopInput.addEventListener('input', update);
   timeInput.addEventListener('input', update);
   percentileInput.addEventListener('input', update);
+  trailingInput.addEventListener('change', update);
   async function show() {
     if (data) return draw();
     if (request) return request;

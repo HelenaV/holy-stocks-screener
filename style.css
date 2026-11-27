@@ -71,7 +71,8 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .markup-inputs label{display:grid;gap:4px;font-size:12px}
 .markup-stop{color:var(--stop-line)}
 .markup-time{color:var(--time-line)}
-.markup-inputs input{font:inherit;color:var(--g1);background:var(--p1);border:1px solid var(--g4);border-radius:4px;padding:6px 8px;width:105px}
+.markup-inputs input[type=number]{font:inherit;color:var(--g1);background:var(--p1);border:1px solid var(--g4);border-radius:4px;padding:6px 8px;width:105px}
+.markup-inputs .toggle{display:flex;align-self:end;margin:0 0 8px;color:var(--g2)}
 .markup-results{margin:0;color:var(--g2);font-size:12px}
 .markup-results dd{margin:2px 0 0;color:var(--g1);font-size:17px;font-weight:600}
 .markup canvas{display:block;width:100%;height:clamp(410px,65vh,690px);background:var(--p1);border:1px solid var(--line);border-radius:6px}
