@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Holy Stocks Screener</title>
 <meta name="robots" content="noindex">
-<link rel="stylesheet" href="style.css?v=20261127-markup">
+<link rel="stylesheet" href="style.css?v=20261127-markup-r">
 </head>
 <body>
 <header class="top">
@@ -43,8 +43,25 @@
   <h1>Markup nach dem JAC</h1>
   <p id="markupStatus" role="status"></p>
   <figure id="markupFigure" hidden>
+    <div class="markup-tools">
+      <div class="markup-inputs">
+        <label class="markup-stop" for="markupStop">Stopp in Range-Höhen ab Creek
+          <input id="markupStop" type="number" lang="de" step="any" value="-1" autocomplete="off" required>
+        </label>
+        <label class="markup-time" for="markupTime">Zeitlimit in Handelstagen
+          <input id="markupTime" type="number" min="1" step="1" value="180" autocomplete="off" required>
+        </label>
+      </div>
+      <dl class="markup-results" aria-live="polite" aria-atomic="true">
+        <div><dt>Ø R je Abschluss</dt><dd id="markupMean">—</dd></div>
+        <div><dt>Mit Gewinn</dt><dd id="markupWon">—</dd></div>
+        <div><dt>Ohne Gewinn</dt><dd id="markupWithoutGain">—</dd></div>
+        <div><dt>Noch offen</dt><dd id="markupOpen">—</dd></div>
+        <div><dt>Stopp ≥ Einstieg</dt><dd id="markupInvalid">—</dd></div>
+      </dl>
+    </div>
     <canvas id="markupChart" role="img" aria-label="Überlagerte Kursverläufe nach der JAC-Erkennung. Das Kästchen links zeigt die normierte Akkumulationsspanne vom SC-Tief bis zum Creek." aria-describedby="markupMethod"></canvas>
-    <figcaption id="markupMethod">Tag 0 ist der Tag, an dem der Scanner den JAC erstmals erkannt hat. Jede Linie startet beim damaligen Schlusskurs und endet am letzten verfügbaren Kurs. Gleitender Durchschnitt über fünf Handelstage. Die Y-Achse ist für große Abstände komprimiert.</figcaption>
+    <figcaption id="markupMethod">Einstieg zum Schlusskurs am Tag der JAC-Erkennung. Ab Tag 1 löst das Tagestief den Stopp aus. Eröffnet der Kurs unter dem Stopp, zählt der Eröffnungskurs. Am Zeitlimit zählt der Schlusskurs, sofern der Stopp bis dahin hält. Die dargestellten Kurven sind über fünf Handelstage geglättet, die Rechnung nutzt ungeglättete Kurse. Die Y-Achse ist für große Abstände komprimiert.</figcaption>
   </figure>
 </main>
 
@@ -79,7 +96,7 @@
 <script src="lwc.js?v=20261103b" defer></script>
 <script src="search.js?v=20261116-feedback2" defer></script>
 <script src="feedback.js?v=20261117-remy-approved" defer></script>
-<script src="markup.js?v=20261127" defer></script>
+<script src="markup.js?v=20261127-r" defer></script>
 <script src="app.js?v=20261127-markup" defer></script>
 </body>
 </html>

@@ -64,7 +64,16 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .bt-grid .fx{flex-wrap:wrap}
 @media(max-width:620px){.backtest{padding:14px 12px 36px}}
 /* Markup */
+.markup{--stop-line:#f3a18c;--time-line:#83c8ed}
 .markup figure{margin:18px 0 0}
+.markup-tools,.markup-inputs,.markup-results{display:flex;flex-wrap:wrap;gap:12px 20px}
+.markup-tools{align-items:end;margin-bottom:13px;gap:12px 30px}
+.markup-inputs label{display:grid;gap:4px;font-size:12px}
+.markup-stop{color:var(--stop-line)}
+.markup-time{color:var(--time-line)}
+.markup-inputs input{font:inherit;color:var(--g1);background:var(--p1);border:1px solid var(--g4);border-radius:4px;padding:6px 8px;width:105px}
+.markup-results{margin:0;color:var(--g2);font-size:12px}
+.markup-results dd{margin:2px 0 0;color:var(--g1);font-size:17px;font-weight:600}
 .markup canvas{display:block;width:100%;height:clamp(410px,65vh,690px);background:var(--p1);border:1px solid var(--line);border-radius:6px}
 .markup figcaption{margin:10px 0;color:var(--g2);font-size:13px;max-width:100ch}
 @media(max-width:620px){.top{gap:8px 12px}.tabs{max-width:100%;flex-wrap:wrap}.tab{padding-inline:10px}}

@@ -2,9 +2,69 @@
   const canvas = document.querySelector('#markupChart');
   const figure = document.querySelector('#markupFigure');
   const status = document.querySelector('#markupStatus');
+  const stopInput = document.querySelector('#markupStop');
+  const timeInput = document.querySelector('#markupTime');
+  const results = ['Mean', 'Won', 'WithoutGain', 'Open', 'Invalid'].map(
+    name => document.querySelector('#markup' + name));
   const number = new Intl.NumberFormat('de-DE');
+  const rFormat = new Intl.NumberFormat('de-DE', {
+    minimumFractionDigits: 2, maximumFractionDigits: 2, signDisplay: 'exceptZero'
+  });
   const date = new Intl.DateTimeFormat('de-DE', {dateStyle: 'medium', timeZone: 'UTC'});
   let data, request;
+
+  function smoothCloses(bars, windowSize) {
+    let sum = 0;
+    return bars.map(([, , close], day) => {
+      sum += close;
+      if (day >= windowSize) sum -= bars[day - windowSize][2];
+      // The price payload has Creek at 0. The chart uses the SC low at 0.
+      return 1 + sum / Math.min(day + 1, windowSize);
+    });
+  }
+
+  function exitPrice(bars, stop, time) {
+    const last = bars.length - 1;
+    for (let day = 1; day <= Math.min(time, last); day++) {
+      const [open, low] = bars[day];
+      if (low <= stop) return Math.min(open, stop);
+    }
+    return last >= time ? bars[time][2] : null;
+  }
+
+  function update() {
+    if (!data) return;
+    const stop = stopInput.valueAsNumber, time = timeInput.valueAsNumber;
+    const validStop = Number.isFinite(stop);
+    const validTime = Number.isSafeInteger(time) && time >= 1;
+    stopInput.setAttribute('aria-invalid', !validStop);
+    timeInput.setAttribute('aria-invalid', !validTime);
+    let total = 0, won = 0, withoutGain = 0, open = 0, invalid = 0;
+    if (validStop && validTime) {
+      for (const {bars} of data.series) {
+        const entry = bars[0][2];
+        const risk = entry - stop;
+        if (risk <= 0) {
+          invalid++;
+          continue;
+        }
+        const exit = exitPrice(bars, stop, time);
+        if (exit === null) {
+          open++;
+          continue;
+        }
+        total += (exit - entry) / risk;
+        if (exit > entry) won++;
+        else withoutGain++;
+      }
+    }
+    const closed = won + withoutGain;
+    results[0].textContent = closed ? rFormat.format(total / closed) + ' R' : '—';
+    [won, withoutGain, open, invalid].forEach((count, index) => {
+      results[index + 1].textContent = validStop && validTime ? number.format(count) : '—';
+    });
+    draw();
+  }
 
   function draw() {
     const width = canvas.clientWidth, height = canvas.clientHeight;
@@ -21,6 +81,15 @@
       maximum = Math.max(maximum, ...values);
       days = Math.max(days, values.length - 1);
     }
+    const stop = stopInput.valueAsNumber, time = timeInput.valueAsNumber;
+    const validStop = Number.isFinite(stop);
+    const validTime = Number.isSafeInteger(time) && time >= 1;
+    if (validStop) {
+      minimum = Math.min(minimum, stop + 1);
+      maximum = Math.max(maximum, stop + 1);
+    }
+    if (validTime) days = Math.max(days, time);
+
     const left = width < 560 ? 78 : 148;
     const right = width - 20;
     const top = 36, bottom = height - 50;
@@ -64,7 +133,9 @@
     // Repeat the range boundaries at the right edge of the origin box.
     grid(left, top, left, bottom, '#61727b');
     grid(left, bottom, right, bottom, '#4a4a4a');
-    const step = width < 560 ? 250 : 100;
+    const tickCount = width < 560 ? 3 : 8;
+    const tickUnit = width < 560 ? 50 : 100;
+    const step = Math.ceil(days / (tickCount * tickUnit)) * tickUnit;
     for (let day = 0; day <= days; day += step) {
       grid(x(day), bottom, x(day), bottom + 5, '#777');
       ctx.fillStyle = '#aaa';
@@ -79,25 +150,38 @@
       for (let day = 1; day < values.length; day++) ctx.lineTo(x(day), y(values[day]));
       ctx.stroke();
     }
+
+    const colors = getComputedStyle(canvas);
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([7, 4]);
+    if (validStop) grid(left, y(stop + 1), right, y(stop + 1),
+      colors.getPropertyValue('--stop-line').trim());
+    if (validTime) grid(x(time), top, x(time), bottom,
+      colors.getPropertyValue('--time-line').trim());
   }
 
   new ResizeObserver(draw).observe(canvas);
+  stopInput.addEventListener('input', update);
+  timeInput.addEventListener('input', update);
   async function show() {
     if (data) return draw();
     if (request) return request;
     status.textContent = 'Kursverläufe werden geladen …';
-    request = fetch('data/markup.json', {cache: 'no-cache'})
+    request = fetch('data/markup.json?v=r1', {cache: 'no-cache'})
       .then(response => {
         if (!response.ok) throw new Error('Markup data unavailable');
         return response.json();
       })
       .then(result => {
+        for (const series of result.series) {
+          series.values = smoothCloses(series.bars, result.smoothingDays);
+        }
         data = result;
         status.textContent = number.format(data.series.length) + ' Akkumulationen auf ' +
           number.format(data.symbols) + ' Aktien · Backtest ' + data.run +
           ' · Kurse bis ' + date.format(new Date(data.end));
         figure.hidden = false;
-        draw();
+        update();
       })
       .catch(() => { status.textContent = 'Kursverläufe konnten nicht geladen werden.'; })
       .finally(() => { request = null; });
