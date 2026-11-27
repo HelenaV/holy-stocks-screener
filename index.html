@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Holy Stocks Screener</title>
 <meta name="robots" content="noindex">
-<link rel="stylesheet" href="style.css?v=20261124-backtest-metrics">
+<link rel="stylesheet" href="style.css?v=20261127-markup">
 </head>
 <body>
 <header class="top">
@@ -17,6 +17,7 @@
     <button id="tabBoard" class="tab on" role="tab" aria-selected="true">Board</button>
     <button id="tabRejected" class="tab" role="tab" aria-selected="false">Rejected</button>
     <button id="tabBacktest" class="tab" role="tab" aria-selected="false" aria-controls="pBacktest">Backtest</button>
+    <button id="tabMarkup" class="tab" role="tab" aria-selected="false" aria-controls="pMarkup">Markup</button>
     <button id="tabCustom" class="tab" role="tab" aria-selected="false">Custom</button>
     <button id="tabLegend" class="tab" role="tab" aria-selected="false">Legende</button>
   </nav>
@@ -37,6 +38,15 @@
 <main id="pRejected" class="board" hidden></main>
 
 <main id="pBacktest" class="backtest" role="tabpanel" aria-labelledby="tabBacktest" hidden></main>
+
+<main id="pMarkup" class="backtest markup" role="tabpanel" aria-labelledby="tabMarkup" hidden>
+  <h1>Markup nach dem JAC</h1>
+  <p id="markupStatus" role="status"></p>
+  <figure id="markupFigure" hidden>
+    <canvas id="markupChart" role="img" aria-label="Überlagerte Kursverläufe nach der JAC-Erkennung. Das Kästchen links zeigt die normierte Akkumulationsspanne vom SC-Tief bis zum Creek." aria-describedby="markupMethod"></canvas>
+    <figcaption id="markupMethod">Tag 0 ist der Tag, an dem der Scanner den JAC erstmals erkannt hat. Jede Linie startet beim damaligen Schlusskurs und endet am letzten verfügbaren Kurs. Gleitender Durchschnitt über fünf Handelstage. Die Y-Achse ist für große Abstände komprimiert.</figcaption>
+  </figure>
+</main>
 
 <main id="pTests" class="legend tests" hidden></main>
 
@@ -69,6 +79,7 @@
 <script src="lwc.js?v=20261103b" defer></script>
 <script src="search.js?v=20261116-feedback2" defer></script>
 <script src="feedback.js?v=20261117-remy-approved" defer></script>
-<script src="app.js?v=20261124-backtest-close-exit" defer></script>
+<script src="markup.js?v=20261127" defer></script>
+<script src="app.js?v=20261127-markup" defer></script>
 </body>
 </html>

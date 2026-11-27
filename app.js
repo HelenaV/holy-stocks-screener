@@ -602,17 +602,18 @@ async function renderBacktest(){
 let cur='board';
 function panelHash(p){
   if(p==='backtest') return backtestRun==null?'#backtest':'#backtest='+encodeURIComponent(backtestRun);
-  return {legend:'#legende',tests:'#tests',custom:'#custom',rejected:'#rejected'}[p]||'';
+  return {legend:'#legende',tests:'#tests',custom:'#custom',rejected:'#rejected',markup:'#markup'}[p]||'';
 }
 function show(p,run=null){
   cur=p;
   if(p==='backtest') backtestRun=run;
-  ['Board','Rejected','Backtest','Custom','Legend','Tests'].forEach(k=>{
+  ['Board','Rejected','Backtest','Markup','Custom','Legend','Tests'].forEach(k=>{
     $('#p'+k).hidden=k.toLowerCase()!==p;
     const t=$('#tab'+k);
     if(t){const on=k.toLowerCase()===p||(k==='Legend'&&p==='tests');t.classList.toggle('on',on);t.setAttribute('aria-selected',on);}
   });
   if(p==='backtest') renderBacktest();
+  if(p==='markup') window.HolyStocksMarkup.show();
   if(p==='board') renderBoard();
   if(p==='legend') renderLegend();
   if(p==='tests') renderTests();
@@ -630,6 +631,7 @@ async function init(){
   order=B.cards.map(c=>c.id);
   $('#sub').textContent=`Wyckoff-Akkumulationen · Scanner v5 · Testlauf · Daten bis ${dDE(B.asof)}`;
   $('#tabBoard').onclick=()=>show('board'); $('#tabBacktest').onclick=()=>show('backtest'); $('#tabLegend').onclick=()=>show('legend'); $('#tabCustom').onclick=()=>show('custom'); $('#tabRejected').onclick=()=>show('rejected');
+  $('#tabMarkup').onclick=()=>show('markup');
   $('#tipToggle').onchange=e=>{tips=e.target.checked; tip();};
   $('#dFeedback').onclick=()=>$('#side').scrollIntoView({behavior:'smooth',block:'start'});
   $('#dBack').onclick=()=>closeDetail(); $('#dPrev').onclick=()=>step(-1); $('#dNext').onclick=()=>step(1);
@@ -641,13 +643,16 @@ async function init(){
     else if(target==='backtest'||target.startsWith('backtest=')){
       if(curId)closeDetail(false);
       show('backtest',target.split('=')[1]??null);
+    }else if(target==='markup'){
+      if(curId)closeDetail(false);
+      show('markup');
     }
   });
   const h=decodeURIComponent(location.hash.slice(1));
   if(h==='backtest'||h.startsWith('backtest=')||h.startsWith('s=bt:')){
     show('backtest',h.startsWith('s=bt:')?h.split(':')[1]:h.split('=')[1]??null);
   }else{
-    show(h==='legende'?'legend':h==='tests'||h.startsWith('s=t:')||h.startsWith('s=f:')?'tests':h==='custom'||h.startsWith('s=c:')?'custom':h==='rejected'||h.startsWith('s=r:')?'rejected':'board');
+    show(h==='markup'?'markup':h==='legende'?'legend':h==='tests'||h.startsWith('s=t:')||h.startsWith('s=f:')?'tests':h==='custom'||h.startsWith('s=c:')?'custom':h==='rejected'||h.startsWith('s=r:')?'rejected':'board');
   }
   if(h.startsWith('s=')) openDetail(h.slice(2));
 }

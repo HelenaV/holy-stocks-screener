@@ -63,6 +63,11 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .bt-grid .card{margin-top:0}
 .bt-grid .fx{flex-wrap:wrap}
 @media(max-width:620px){.backtest{padding:14px 12px 36px}}
+/* Markup */
+.markup figure{margin:18px 0 0}
+.markup canvas{display:block;width:100%;height:clamp(410px,65vh,690px);background:var(--p1);border:1px solid var(--line);border-radius:6px}
+.markup figcaption{margin:10px 0;color:var(--g2);font-size:13px;max-width:100ch}
+@media(max-width:620px){.top{gap:8px 12px}.tabs{max-width:100%;flex-wrap:wrap}.tab{padding-inline:10px}}
 /* detail */
 .detail{position:fixed;inset:0;background:var(--bg);z-index:20;display:flex;flex-direction:column}
 .dhead{display:flex;align-items:center;gap:14px;padding:10px 18px;border-bottom:1px solid var(--line)}
